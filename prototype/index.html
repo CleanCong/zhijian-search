@@ -451,6 +451,79 @@
   .result-foot .mode-note{font-size:11.5px;color:var(--warn);}
   .item .ellip{color:var(--ink-4);}
   .hid .ellip{color:#B5B2A8;}
+
+  /* --- 勾选与重组 --- */
+  .item{position:relative;}
+  .pickbox{
+    flex-shrink:0;width:26px;padding-top:2px;
+  }
+  .pickbox input{
+    width:15px;height:15px;accent-color:var(--accent);cursor:pointer;
+  }
+  .item.picked{background:linear-gradient(90deg,#F6FAF8,transparent 60%);}
+  .item.picked .idx{color:var(--accent);}
+
+  .selbar{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,140%);
+    z-index:40;display:flex;align-items:center;gap:14px;
+    padding:11px 12px 11px 20px;
+    background:var(--ink);color:#fff;border-radius:14px;
+    box-shadow:0 12px 36px -10px rgba(0,0,0,.4);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .selbar.on{transform:translate(-50%,0);}
+  .selbar .cnt{font-size:13px;letter-spacing:.01em;}
+  .selbar .cnt b{font-weight:600;}
+  .selbar button{
+    height:32px;padding:0 14px;border-radius:8px;
+    font-size:13px;transition:.16s;
+  }
+  .selbar .go-sel{background:#fff;color:var(--ink);font-weight:500;}
+  .selbar .go-sel:hover{background:#E8E6DE;}
+  .selbar .clr{color:rgba(255,255,255,.62);}
+  .selbar .clr:hover{color:#fff;}
+
+  .modal-mask{
+    position:fixed;inset:0;z-index:60;display:none;
+    background:rgba(20,20,18,.42);backdrop-filter:blur(2px);
+    padding:40px 20px;overflow:auto;
+  }
+  .modal-mask.on{display:block;}
+  .modal-box{
+    max-width:680px;margin:0 auto;background:#fff;
+    border-radius:16px;box-shadow:0 24px 70px -20px rgba(0,0,0,.3);
+    overflow:hidden;
+  }
+  .modal-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 24px;border-bottom:1px solid var(--line-soft);
+    position:sticky;top:0;background:#fff;z-index:2;
+  }
+  .modal-head h3{font-size:15.5px;font-weight:600;}
+  .modal-head .x{font-size:20px;color:var(--ink-3);line-height:1;padding:2px 6px;}
+  .modal-head .x:hover{color:var(--ink);}
+  .modal-body{padding:22px 24px 26px;}
+  .modal-intro{font-size:12.5px;color:var(--ink-4);margin-bottom:18px;line-height:1.7;}
+  .compose-doc h4{font-size:17px;font-weight:600;margin-bottom:4px;}
+  .compose-doc .meta{font-size:11.5px;color:var(--ink-4);margin-bottom:20px;}
+  .cmp-group{margin-top:18px;}
+  .cmp-group .gt{font-size:11.5px;letter-spacing:.1em;color:var(--accent);font-weight:600;margin-bottom:9px;}
+  .cmp-entry{padding:12px 0;border-top:1px solid var(--line-soft);}
+  .cmp-entry p{font-size:13.5px;line-height:1.8;color:var(--ink-2);margin-bottom:7px;}
+  .cmp-entry small{font-size:11.5px;color:var(--ink-4);display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+  .cmp-entry small a{color:var(--accent);border-bottom:1px dotted #B9D6CA;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;}
+  .cmp-entry .more{
+    font-size:12px;color:var(--accent);background:none;border:none;
+    padding:0;margin:2px 0 8px;cursor:pointer;
+  }
+  .cmp-entry .more:hover{text-decoration:underline;}
+  #modal .act{
+    height:38px;padding:0 18px;border-radius:9px;font-size:13.5px;
+    border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  }
+  #modal .act.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  #modal .act:hover{border-color:#C9C4B4;}
 </style>
 </head>
 <body>
@@ -551,5 +624,21 @@
 
 <script src="seed.js"></script>
 <script src="app.js"></script>
+
+<div class="selbar" id="selbar">
+  <span class="cnt">已选 <b id="selcount">0</b> 条</span>
+  <button class="go-sel" onclick="openCompose()">整合所选</button>
+  <button class="clr" onclick="clearSel()">清空</button>
+</div>
+
+<div class="modal-mask" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>你的精选资料</h3>
+      <button class="x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalbody"></div>
+  </div>
+</div>
 </body>
 </html>

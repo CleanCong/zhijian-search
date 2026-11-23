@@ -21,6 +21,7 @@ const TIMEOUT_MS = 8000;
 
 let CURRENT = null;
 let TECH_ON = false;
+let selectedIds = new Set();
 
 const $ = (id) => document.getElementById(id);
 
@@ -152,6 +153,8 @@ function escapeHtml(s) {
 
 function render(data, degradedReason) {
   CURRENT = data;
+  selectedIds = new Set();
+  updateSelbar();
   show('result');
 
   const card = (data.cards || [])[0] || {};
@@ -208,15 +211,16 @@ function render(data, degradedReason) {
       const arr = groupOf(data, b.key);
       if (!arr.length) return '';
       const items = arr
-        .map((a, i) => {
+        .map((a) => {
           const c = clip(a.content_text, 190);
+          const picked = selectedIds.has(a.id);
           return `
-          <div class="item ${b.cls}">
-            <div class="idx">${String(i + 1).padStart(2, '0')}</div>
+          <div class="item ${b.cls}${picked ? ' picked' : ''}" data-full="${escapeHtml(a.content_text || '')}">
+            <label class="pickbox"><input type="checkbox" data-pick="${escapeHtml(a.id)}" ${picked ? 'checked' : ''} aria-label="加入精选"></label>
             <div class="body">
               <p class="q-title">${escapeHtml(a.title || '')}</p>
               <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
-              ${c.truncated ? `<button class="more" onclick="expand(this, ${i})" data-full="${escapeHtml(a.content_text)}">展开全文</button>` : ''}
+              ${c.truncated ? `<button class="more" onclick="expand(this)">展开全文</button>` : ''}
               <div class="src">${sourceLine(a)}</div>
             </div>
           </div>`;
@@ -277,10 +281,11 @@ function render(data, degradedReason) {
   $('fold').classList.remove('open');
 }
 
-function expand(btn, idx) {
-  const full = btn.getAttribute('data-full') || '';
+function expand(btn) {
+  const item = btn.closest('.item');
+  const full = item ? item.getAttribute('data-full') || '' : '';
   const p = btn.previousElementSibling;
-  p.textContent = full;
+  if (p && full) p.textContent = full;
   btn.remove();
 }
 
@@ -305,4 +310,163 @@ function override(btn) {
     btn.classList.add('did');
     btn.textContent = '已记录你的判断 · 下次不再收起';
   }
+}
+
+
+/* ===========================================================
+   勾选与重组
+   -----------------------------------------------------------
+   设计说明：
+   · 勾选的粒度是「整条内容」，不是整篇回答——用户要的是
+     「这几条我要留着」，而不是「这篇我要收藏」
+   · 导出的是本地拼接的 Markdown，不调模型、不烧额度
+   · 文件里保留作者、年份、原文链接，让人能回去核对
+   =========================================================== */
+
+function updateSelbar() {
+  const n = selectedIds.size;
+  const bar = $('selbar');
+  if (!bar) return;
+  $('selcount').textContent = n;
+  bar.classList.toggle('on', n > 0);
+}
+
+function syncPicked() {
+  document.querySelectorAll('[data-pick]').forEach((cb) => {
+    const item = cb.closest('.item');
+    if (item) item.classList.toggle('picked', cb.checked);
+  });
+}
+
+// 事件委托：渲染是重建 innerHTML，挂在父级才不会失效
+document.addEventListener('change', (e) => {
+  const cb = e.target.closest && e.target.closest('[data-pick]');
+  if (!cb) return;
+  const id = cb.getAttribute('data-pick');
+  if (cb.checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  syncPicked();
+  updateSelbar();
+});
+
+function clearSel() {
+  selectedIds = new Set();
+  document.querySelectorAll('[data-pick]').forEach((cb) => { cb.checked = false; });
+  syncPicked();
+  updateSelbar();
+}
+
+const GROUP_TITLE = {
+  consensus: '大家都这么说',
+  disputed: '说法不一的地方',
+  pitfalls: '有人具体踩过的坑',
+  hidden: '被收起的内容'
+};
+
+function selectedItems() {
+  if (!CURRENT) return [];
+  return (CURRENT.answers || []).filter((a) => selectedIds.has(a.id));
+}
+
+function openCompose() {
+  const rows = selectedItems();
+  if (!rows.length) return;
+
+  // 按分组聚合，保持与结果页一致的顺序
+  const order = ['consensus', 'disputed', 'pitfalls'];
+  const groups = {};
+  rows.forEach((a) => {
+    const g = a.group || 'consensus';
+    (groups[g] = groups[g] || []).push(a);
+  });
+
+  const body = order
+    .filter((g) => groups[g])
+    .map((g) => {
+      const items = groups[g]
+        .map((a) => {
+          const link = a.url
+            ? `<a href="${a.url}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>`
+            : '<span>来源链接不可用</span>';
+          const c = clip(a.content_text, 260);
+          return `<div class="cmp-entry" data-full="${escapeHtml(a.content_text || '')}">
+            <p>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
+            ${c.truncated ? '<button class="more" onclick="expandCmp(this)">展开这条</button>' : ''}
+            <small>
+              <span>知乎 · ${escapeHtml(a.author_signature || '匿名')}</span>
+              ${a.published_year ? `<span>${a.published_year}</span>` : ''}
+              ${a.vote_up_count ? `<span>${a.vote_up_count} 赞</span>` : ''}
+              ${link}
+            </small>
+          </div>`;
+        })
+        .join('');
+      return `<div class="cmp-group"><div class="gt">${GROUP_TITLE[g] || g}</div>${items}</div>`;
+    })
+    .join('');
+
+  $('modalbody').innerHTML = `
+    <p class="modal-intro">按你选的顺序拼在一起，保留出处与时间。不带任何改写。</p>
+    <div class="compose-doc">
+      <h4>${escapeHtml(CURRENT.query || '')}</h4>
+      <div class="meta">${rows.length} 条 · 来自知乎公开内容 · 整理于 ${new Date().toLocaleDateString('zh-CN')}</div>
+      ${body}
+    </div>
+    <div class="modal-actions">
+      <button class="act" onclick="closeModal()">返回</button>
+      <button class="act primary" onclick="exportMarkdown()">导出 Markdown</button>
+    </div>`;
+  $('modal').classList.add('on');
+}
+
+function expandCmp(btn) {
+  const entry = btn.closest('.cmp-entry');
+  const full = entry ? entry.getAttribute('data-full') || '' : '';
+  const p = entry ? entry.querySelector('p') : null;
+  if (p && full) p.textContent = full;
+  btn.remove();
+}
+
+function closeModal() {
+  $('modal').classList.remove('on');
+}
+
+function exportMarkdown() {
+  const rows = selectedItems();
+  if (!rows.length) return;
+
+  const order = ['consensus', 'disputed', 'pitfalls'];
+  const lines = [
+    `# ${CURRENT.query || '精选资料'}`,
+    '',
+    `> ${rows.length} 条内容，拼自知乎公开回答与文章。`,
+    '> 这里的判断只作参考，可信度与时效是系统辅助评估，请结合原文自行核对。',
+    ''
+  ];
+
+  order.forEach((g) => {
+    const items = rows.filter((a) => (a.group || 'consensus') === g);
+    if (!items.length) return;
+    lines.push(`## ${GROUP_TITLE[g]}`, '');
+    items.forEach((a) => {
+      lines.push('…' + (a.content_text || ''));
+      lines.push('');
+      const meta = [`知乎 · ${a.author_signature || '匿名'}`];
+      if (a.published_year) meta.push(String(a.published_year));
+      if (a.vote_up_count) meta.push(`${a.vote_up_count} 赞`);
+      lines.push(`— ${meta.join(' · ')}`);
+      if (a.url) lines.push(`原文：${a.url}`);
+      lines.push('');
+    });
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  const name = (CURRENT.query || '精选').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${name}-精选.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }

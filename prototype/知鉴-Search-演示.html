@@ -451,6 +451,79 @@
   .result-foot .mode-note{font-size:11.5px;color:var(--warn);}
   .item .ellip{color:var(--ink-4);}
   .hid .ellip{color:#B5B2A8;}
+
+  /* --- 勾选与重组 --- */
+  .item{position:relative;}
+  .pickbox{
+    flex-shrink:0;width:26px;padding-top:2px;
+  }
+  .pickbox input{
+    width:15px;height:15px;accent-color:var(--accent);cursor:pointer;
+  }
+  .item.picked{background:linear-gradient(90deg,#F6FAF8,transparent 60%);}
+  .item.picked .idx{color:var(--accent);}
+
+  .selbar{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,140%);
+    z-index:40;display:flex;align-items:center;gap:14px;
+    padding:11px 12px 11px 20px;
+    background:var(--ink);color:#fff;border-radius:14px;
+    box-shadow:0 12px 36px -10px rgba(0,0,0,.4);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .selbar.on{transform:translate(-50%,0);}
+  .selbar .cnt{font-size:13px;letter-spacing:.01em;}
+  .selbar .cnt b{font-weight:600;}
+  .selbar button{
+    height:32px;padding:0 14px;border-radius:8px;
+    font-size:13px;transition:.16s;
+  }
+  .selbar .go-sel{background:#fff;color:var(--ink);font-weight:500;}
+  .selbar .go-sel:hover{background:#E8E6DE;}
+  .selbar .clr{color:rgba(255,255,255,.62);}
+  .selbar .clr:hover{color:#fff;}
+
+  .modal-mask{
+    position:fixed;inset:0;z-index:60;display:none;
+    background:rgba(20,20,18,.42);backdrop-filter:blur(2px);
+    padding:40px 20px;overflow:auto;
+  }
+  .modal-mask.on{display:block;}
+  .modal-box{
+    max-width:680px;margin:0 auto;background:#fff;
+    border-radius:16px;box-shadow:0 24px 70px -20px rgba(0,0,0,.3);
+    overflow:hidden;
+  }
+  .modal-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 24px;border-bottom:1px solid var(--line-soft);
+    position:sticky;top:0;background:#fff;z-index:2;
+  }
+  .modal-head h3{font-size:15.5px;font-weight:600;}
+  .modal-head .x{font-size:20px;color:var(--ink-3);line-height:1;padding:2px 6px;}
+  .modal-head .x:hover{color:var(--ink);}
+  .modal-body{padding:22px 24px 26px;}
+  .modal-intro{font-size:12.5px;color:var(--ink-4);margin-bottom:18px;line-height:1.7;}
+  .compose-doc h4{font-size:17px;font-weight:600;margin-bottom:4px;}
+  .compose-doc .meta{font-size:11.5px;color:var(--ink-4);margin-bottom:20px;}
+  .cmp-group{margin-top:18px;}
+  .cmp-group .gt{font-size:11.5px;letter-spacing:.1em;color:var(--accent);font-weight:600;margin-bottom:9px;}
+  .cmp-entry{padding:12px 0;border-top:1px solid var(--line-soft);}
+  .cmp-entry p{font-size:13.5px;line-height:1.8;color:var(--ink-2);margin-bottom:7px;}
+  .cmp-entry small{font-size:11.5px;color:var(--ink-4);display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+  .cmp-entry small a{color:var(--accent);border-bottom:1px dotted #B9D6CA;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;}
+  .cmp-entry .more{
+    font-size:12px;color:var(--accent);background:none;border:none;
+    padding:0;margin:2px 0 8px;cursor:pointer;
+  }
+  .cmp-entry .more:hover{text-decoration:underline;}
+  #modal .act{
+    height:38px;padding:0 18px;border-radius:9px;font-size:13.5px;
+    border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  }
+  #modal .act.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  #modal .act:hover{border-color:#C9C4B4;}
 </style>
 </head>
 <body>
@@ -935,6 +1008,7 @@ const TIMEOUT_MS = 8000;
 
 let CURRENT = null;
 let TECH_ON = false;
+let selectedIds = new Set();
 
 const $ = (id) => document.getElementById(id);
 
@@ -1066,6 +1140,8 @@ function escapeHtml(s) {
 
 function render(data, degradedReason) {
   CURRENT = data;
+  selectedIds = new Set();
+  updateSelbar();
   show('result');
 
   const card = (data.cards || [])[0] || {};
@@ -1122,15 +1198,16 @@ function render(data, degradedReason) {
       const arr = groupOf(data, b.key);
       if (!arr.length) return '';
       const items = arr
-        .map((a, i) => {
+        .map((a) => {
           const c = clip(a.content_text, 190);
+          const picked = selectedIds.has(a.id);
           return `
-          <div class="item ${b.cls}">
-            <div class="idx">${String(i + 1).padStart(2, '0')}</div>
+          <div class="item ${b.cls}${picked ? ' picked' : ''}" data-full="${escapeHtml(a.content_text || '')}">
+            <label class="pickbox"><input type="checkbox" data-pick="${escapeHtml(a.id)}" ${picked ? 'checked' : ''} aria-label="加入精选"></label>
             <div class="body">
               <p class="q-title">${escapeHtml(a.title || '')}</p>
               <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
-              ${c.truncated ? `<button class="more" onclick="expand(this, ${i})" data-full="${escapeHtml(a.content_text)}">展开全文</button>` : ''}
+              ${c.truncated ? `<button class="more" onclick="expand(this)">展开全文</button>` : ''}
               <div class="src">${sourceLine(a)}</div>
             </div>
           </div>`;
@@ -1191,10 +1268,11 @@ function render(data, degradedReason) {
   $('fold').classList.remove('open');
 }
 
-function expand(btn, idx) {
-  const full = btn.getAttribute('data-full') || '';
+function expand(btn) {
+  const item = btn.closest('.item');
+  const full = item ? item.getAttribute('data-full') || '' : '';
   const p = btn.previousElementSibling;
-  p.textContent = full;
+  if (p && full) p.textContent = full;
   btn.remove();
 }
 
@@ -1221,6 +1299,181 @@ function override(btn) {
   }
 }
 
+
+/* ===========================================================
+   勾选与重组
+   -----------------------------------------------------------
+   设计说明：
+   · 勾选的粒度是「整条内容」，不是整篇回答——用户要的是
+     「这几条我要留着」，而不是「这篇我要收藏」
+   · 导出的是本地拼接的 Markdown，不调模型、不烧额度
+   · 文件里保留作者、年份、原文链接，让人能回去核对
+   =========================================================== */
+
+function updateSelbar() {
+  const n = selectedIds.size;
+  const bar = $('selbar');
+  if (!bar) return;
+  $('selcount').textContent = n;
+  bar.classList.toggle('on', n > 0);
+}
+
+function syncPicked() {
+  document.querySelectorAll('[data-pick]').forEach((cb) => {
+    const item = cb.closest('.item');
+    if (item) item.classList.toggle('picked', cb.checked);
+  });
+}
+
+// 事件委托：渲染是重建 innerHTML，挂在父级才不会失效
+document.addEventListener('change', (e) => {
+  const cb = e.target.closest && e.target.closest('[data-pick]');
+  if (!cb) return;
+  const id = cb.getAttribute('data-pick');
+  if (cb.checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  syncPicked();
+  updateSelbar();
+});
+
+function clearSel() {
+  selectedIds = new Set();
+  document.querySelectorAll('[data-pick]').forEach((cb) => { cb.checked = false; });
+  syncPicked();
+  updateSelbar();
+}
+
+const GROUP_TITLE = {
+  consensus: '大家都这么说',
+  disputed: '说法不一的地方',
+  pitfalls: '有人具体踩过的坑',
+  hidden: '被收起的内容'
+};
+
+function selectedItems() {
+  if (!CURRENT) return [];
+  return (CURRENT.answers || []).filter((a) => selectedIds.has(a.id));
+}
+
+function openCompose() {
+  const rows = selectedItems();
+  if (!rows.length) return;
+
+  // 按分组聚合，保持与结果页一致的顺序
+  const order = ['consensus', 'disputed', 'pitfalls'];
+  const groups = {};
+  rows.forEach((a) => {
+    const g = a.group || 'consensus';
+    (groups[g] = groups[g] || []).push(a);
+  });
+
+  const body = order
+    .filter((g) => groups[g])
+    .map((g) => {
+      const items = groups[g]
+        .map((a) => {
+          const link = a.url
+            ? `<a href="${a.url}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>`
+            : '<span>来源链接不可用</span>';
+          const c = clip(a.content_text, 260);
+          return `<div class="cmp-entry" data-full="${escapeHtml(a.content_text || '')}">
+            <p>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
+            ${c.truncated ? '<button class="more" onclick="expandCmp(this)">展开这条</button>' : ''}
+            <small>
+              <span>知乎 · ${escapeHtml(a.author_signature || '匿名')}</span>
+              ${a.published_year ? `<span>${a.published_year}</span>` : ''}
+              ${a.vote_up_count ? `<span>${a.vote_up_count} 赞</span>` : ''}
+              ${link}
+            </small>
+          </div>`;
+        })
+        .join('');
+      return `<div class="cmp-group"><div class="gt">${GROUP_TITLE[g] || g}</div>${items}</div>`;
+    })
+    .join('');
+
+  $('modalbody').innerHTML = `
+    <p class="modal-intro">按你选的顺序拼在一起，保留出处与时间。不带任何改写。</p>
+    <div class="compose-doc">
+      <h4>${escapeHtml(CURRENT.query || '')}</h4>
+      <div class="meta">${rows.length} 条 · 来自知乎公开内容 · 整理于 ${new Date().toLocaleDateString('zh-CN')}</div>
+      ${body}
+    </div>
+    <div class="modal-actions">
+      <button class="act" onclick="closeModal()">返回</button>
+      <button class="act primary" onclick="exportMarkdown()">导出 Markdown</button>
+    </div>`;
+  $('modal').classList.add('on');
+}
+
+function expandCmp(btn) {
+  const entry = btn.closest('.cmp-entry');
+  const full = entry ? entry.getAttribute('data-full') || '' : '';
+  const p = entry ? entry.querySelector('p') : null;
+  if (p && full) p.textContent = full;
+  btn.remove();
+}
+
+function closeModal() {
+  $('modal').classList.remove('on');
+}
+
+function exportMarkdown() {
+  const rows = selectedItems();
+  if (!rows.length) return;
+
+  const order = ['consensus', 'disputed', 'pitfalls'];
+  const lines = [
+    `# ${CURRENT.query || '精选资料'}`,
+    '',
+    `> ${rows.length} 条内容，拼自知乎公开回答与文章。`,
+    '> 这里的判断只作参考，可信度与时效是系统辅助评估，请结合原文自行核对。',
+    ''
+  ];
+
+  order.forEach((g) => {
+    const items = rows.filter((a) => (a.group || 'consensus') === g);
+    if (!items.length) return;
+    lines.push(`## ${GROUP_TITLE[g]}`, '');
+    items.forEach((a) => {
+      lines.push('…' + (a.content_text || ''));
+      lines.push('');
+      const meta = [`知乎 · ${a.author_signature || '匿名'}`];
+      if (a.published_year) meta.push(String(a.published_year));
+      if (a.vote_up_count) meta.push(`${a.vote_up_count} 赞`);
+      lines.push(`— ${meta.join(' · ')}`);
+      if (a.url) lines.push(`原文：${a.url}`);
+      lines.push('');
+    });
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  const name = (CURRENT.query || '精选').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${name}-精选.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
 </script>
+
+<div class="selbar" id="selbar">
+  <span class="cnt">已选 <b id="selcount">0</b> 条</span>
+  <button class="go-sel" onclick="openCompose()">整合所选</button>
+  <button class="clr" onclick="clearSel()">清空</button>
+</div>
+
+<div class="modal-mask" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>你的精选资料</h3>
+      <button class="x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalbody"></div>
+  </div>
+</div>
 </body>
 </html>

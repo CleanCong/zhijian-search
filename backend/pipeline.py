@@ -56,12 +56,43 @@ SCENES: dict[str, dict[str, Any]] = {
     "general": {
         "label": "综合探索",
         "keywords": [],
-        "sub_queries": [
-            "{q} 缺点 问题",
-            "{q} 真实体验",
-        ],
+        # general 的子查询不写死，按问题类型动态选（见 pick_general_subs）
+        "sub_queries": [],
     },
 }
+
+# 通用问题的子查询模板：先判断「这是个什么类型的问题」，再决定拆什么。
+# 为什么需要：固定用「XX 缺点 问题」对所有问题都套，搜「什么是 RAG」
+# 会被强行加上「缺点」，召回的东西就跑偏了。
+GENERAL_PATTERNS: list[tuple[str, list[str]]] = [
+    (
+        r"哪个好|还是|对比|选哪个|vs|该选|区别",
+        ["{q} 缺点 问题", "{q} 真实使用感受", "{q} 价格 差异"],
+    ),
+    (
+        r"值不值|值得|有必要|该不该|后悔",
+        ["{q} 后悔", "{q} 真实体验", "{q} 成本 代价"],
+    ),
+    (
+        r"怎么|如何|有什么坑|注意|避免|方法",
+        ["{q} 踩坑 经验", "{q} 注意事项", "{q} 失败 教训"],
+    ),
+    (
+        r"是什么|什么是|为什么|原理|区别在",
+        ["{q} 解释", "{q} 举例", "{q} 争议 不同看法"],
+    ),
+]
+
+GENERAL_FALLBACK = ["{q} 真实体验", "{q} 缺点 问题"]
+
+
+def pick_general_subs(query: str) -> list[str]:
+    """给任意问题挑一组子查询。判断不了就用兜底。"""
+    q = query or ""
+    for pattern, subs in GENERAL_PATTERNS:
+        if re.search(pattern, q):
+            return subs
+    return GENERAL_FALLBACK
 
 
 def detect_scene(query: str) -> tuple[str, dict[str, Any]]:
@@ -118,7 +149,10 @@ def build_sub_queries(query: str, conf: dict[str, Any]) -> list[str]:
     prefix = " ".join(constraints)
 
     subs = [query]
-    for tpl in conf.get("sub_queries", []):
+    templates = conf.get("sub_queries") or []
+    if not templates:                      # general 场景：按问题类型动态选
+        templates = pick_general_subs(query)
+    for tpl in templates:
         sub = tpl.format(q=query)
         if prefix and prefix not in sub:
             sub = f"{prefix} {sub}"

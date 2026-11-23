@@ -208,30 +208,42 @@ function render(data, degradedReason) {
     { key: 'pitfalls', title: '有人具体踩过的坑', tag: '带场景，能对上自己家', cls: 'pit' }
   ];
 
+  // 每组先给两条，其余折起来。
+  // 为什么不全部折叠：全收起来时首屏只剩三个标题，一个字都读不到，
+  // 「30 秒看懂」就废了。留两条既有实质内容，页面也不至于太长。
+  const PER_GROUP = 2;
+
+  const renderItem = (a, cls) => {
+    const c = clip(a.content_text, 190);
+    const picked = selectedIds.has(a.id);
+    return `
+      <div class="item ${cls}${picked ? ' picked' : ''}" data-full="${escapeHtml(a.content_text || '')}">
+        <label class="pickbox"><input type="checkbox" data-pick="${escapeHtml(a.id)}" ${picked ? 'checked' : ''} aria-label="加入精选"></label>
+        <div class="body">
+          <p class="q-title">${escapeHtml(a.title || '')}</p>
+          <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
+          ${c.truncated ? `<button class="more" onclick="expand(this)">展开全文</button>` : ''}
+          <div class="src">${sourceLine(a)}</div>
+        </div>
+      </div>`;
+  };
+
   $('blocks').innerHTML = blocks
-    .map((b) => {
+    .map((b, bi) => {
       const arr = groupOf(data, b.key);
       if (!arr.length) return '';
-      const items = arr
-        .map((a) => {
-          const c = clip(a.content_text, 190);
-          const picked = selectedIds.has(a.id);
-          return `
-          <div class="item ${b.cls}${picked ? ' picked' : ''}" data-full="${escapeHtml(a.content_text || '')}">
-            <label class="pickbox"><input type="checkbox" data-pick="${escapeHtml(a.id)}" ${picked ? 'checked' : ''} aria-label="加入精选"></label>
-            <div class="body">
-              <p class="q-title">${escapeHtml(a.title || '')}</p>
-              <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
-              ${c.truncated ? `<button class="more" onclick="expand(this)">展开全文</button>` : ''}
-              <div class="src">${sourceLine(a)}</div>
-            </div>
-          </div>`;
-        })
-        .join('');
+      const head = arr.slice(0, PER_GROUP).map((a) => renderItem(a, b.cls)).join('');
+      const rest = arr.slice(PER_GROUP);
+      const restHtml = rest.length
+        ? `<div class="rest" id="rest${bi}" hidden>${rest.map((a) => renderItem(a, b.cls)).join('')}</div>
+           <button class="more-group" id="moreBtn${bi}" onclick="toggleGroup(${bi})">
+             还有 ${rest.length} 条 · 展开
+           </button>`
+        : '';
       return `
         <div class="block">
           <div class="block-head"><h3>${b.title}</h3><span class="tag">${b.tag} · ${arr.length} 条</span></div>
-          ${items}
+          ${head}${restHtml}
         </div>`;
     })
     .join('');
@@ -285,6 +297,17 @@ function render(data, degradedReason) {
   const pickable = (data.answers || []).filter((a) => a.group !== 'hidden').length;
   const pk = $('pickBtn');
   if (pk) pk.style.display = pickable ? '' : 'none';
+}
+
+function toggleGroup(i) {
+  const rest = $('rest' + i);
+  const btn = $('moreBtn' + i);
+  if (!rest || !btn) return;
+  const open = !rest.hidden;
+  rest.hidden = open;
+  const n = rest.querySelectorAll('.item').length;
+  btn.textContent = open ? `还有 ${n} 条 · 展开` : '收起';
+  if (!open) rest.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function expand(btn) {

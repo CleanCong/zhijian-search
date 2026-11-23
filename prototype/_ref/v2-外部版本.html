@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7f8f6" />
+  <title>知鉴 Search — 让搜索更有判断力</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f8f6;
+      --surface: #fff;
+      --ink: #17211f;
+      --muted: #74807c;
+      --line: #e7ebe7;
+      --soft: #f1f4f1;
+      --brand: #18745c;
+      --brand-dark: #105941;
+      --brand-wash: #eaf5ef;
+      --blue: #416c9e;
+      --blue-wash: #edf3fa;
+      --amber: #a56a13;
+      --amber-wash: #fff5e3;
+      --red: #b4483e;
+      --red-wash: #fff0ed;
+      --radius: 16px;
+      --shadow: 0 2px 6px rgba(27, 46, 37, .035), 0 14px 36px rgba(27, 46, 37, .035);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    a { color: inherit; }
+    .topbar {
+      height: 68px;
+      padding: 0 max(28px, calc((100vw - 1440px) / 2));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.92);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+    .brand-mark {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      border-radius: 11px; color: #fff; background: var(--brand);
+    }
+    .brand-mark svg { width: 20px; height: 20px; }
+    .brand-name { font-size: 16px; font-weight: 750; letter-spacing: -.45px; }
+    .brand-name span { color: var(--brand); }
+    .brand-caption { margin-top: -3px; color: var(--muted); font-size: 11px; }
+    .top-right { display: flex; align-items: center; gap: 18px; }
+    .trust-note { color: var(--muted); font-size: 12px; }
+    .mode-pill {
+      display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px;
+      border: 1px solid #dcebe1; border-radius: 999px;
+      color: var(--brand-dark); background: #f5faf6; font-size: 11px; font-weight: 650;
+    }
+    .mode-dot { width: 7px; height: 7px; border-radius: 50%; background: #55a979; box-shadow: 0 0 0 3px #e1f1e6; }
+    .layout { max-width: 1440px; margin: 0 auto; padding: 36px 28px 72px; }
+    .hero { max-width: 830px; margin: 0 auto 30px; text-align: center; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 7px; margin-bottom: 12px;
+      color: var(--brand); font-size: 11px; font-weight: 750; letter-spacing: 1.15px;
+    }
+    .eyebrow-mark { width: 6px; height: 6px; border-radius: 2px; background: var(--brand); transform: rotate(45deg); }
+    h1 { margin: 0; font-size: clamp(29px, 3.2vw, 40px); line-height: 1.2; letter-spacing: -1.6px; font-weight: 740; }
+    .hero-copy { margin: 10px 0 23px; color: var(--muted); font-size: 14px; }
+    .search-shell {
+      display: flex; align-items: center; gap: 12px; padding: 7px 8px 7px 17px;
+      background: var(--surface); border: 1px solid #dde4de; border-radius: 14px;
+      box-shadow: 0 5px 22px rgba(32, 63, 47, .07); transition: border-color .18s, box-shadow .18s;
+    }
+    .search-shell:focus-within { border-color: #7fb59c; box-shadow: 0 0 0 4px rgba(24,116,92,.08), 0 7px 22px rgba(32,63,47,.07); }
+    .search-icon { width: 19px; height: 19px; color: #89948f; flex: none; }
+    .search-shell input { width: 100%; min-width: 0; height: 43px; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 15px; }
+    .search-shell input::placeholder { color: #a0aaa4; }
+    .search-button {
+      height: 42px; min-width: 95px; padding: 0 18px; border: 0; border-radius: 10px;
+      color: #fff; background: var(--brand); font-weight: 650; cursor: pointer; transition: background .18s, transform .18s;
+    }
+    .search-button:hover { background: var(--brand-dark); transform: translateY(-1px); }
+    .search-button:disabled { opacity: .7; cursor: wait; transform: none; }
+    .shortcut { display: inline-flex; align-items: center; gap: 3px; color: rgba(255,255,255,.72); font-size: 10px; font-weight: 450; }
+    .suggestions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+    .suggestion {
+      padding: 6px 11px; border: 1px solid #e4e9e4; border-radius: 999px;
+      color: #58645e; background: rgba(255,255,255,.65); font-size: 11px; cursor: pointer;
+      transition: border-color .16s, color .16s, background .16s;
+    }
+    .suggestion:hover { border-color: #b7d4c3; color: var(--brand); background: #fff; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 286px; gap: 18px; align-items: start; }
+    .main-column { min-width: 0; }
+    .empty-state {
+      min-height: 290px; display: grid; place-items: center; padding: 32px;
+      border: 1px dashed #dce4dd; border-radius: var(--radius); background: rgba(255,255,255,.55);
+      text-align: center;
+    }
+    .empty-inner { max-width: 410px; }
+    .empty-art {
+      width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 14px;
+      color: var(--brand); background: var(--brand-wash); border-radius: 17px;
+    }
+    .empty-art svg { width: 25px; height: 25px; }
+    .empty-state h2 { margin: 0; font-size: 17px; letter-spacing: -.3px; }
+    .empty-state p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .side-column { display: grid; gap: 14px; }
+    .panel, .results-panel, .answer-card, .matrix-wrap {
+      background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .panel { padding: 17px; }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 13px; font-size: 13px; font-weight: 720; }
+    .panel-hint { color: #9aa39e; font-size: 10px; font-weight: 450; }
+    .control-group { padding: 12px 0; border-top: 1px solid #eff1ef; }
+    .control-group:first-of-type { padding-top: 0; border-top: 0; }
+    .control-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #47534d; font-size: 11px; font-weight: 620; }
+    .select {
+      width: 100%; height: 35px; margin-top: 8px; padding: 0 10px; outline: 0;
+      border: 1px solid #e3e8e4; border-radius: 8px; color: #36423b; background: #fff; font-size: 11px;
+    }
+    .select:focus { border-color: #86b89d; }
+    .range-line { display: flex; align-items: center; gap: 11px; margin-top: 9px; }
+    input[type="range"] { width: 100%; accent-color: var(--brand); cursor: pointer; }
+    .range-value { min-width: 32px; color: var(--brand); font-size: 11px; font-weight: 700; text-align: right; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; color: #47534d; font-size: 11px; }
+    .toggle-row + .toggle-row { border-top: 1px solid #f0f2f0; }
+    .toggle { position: relative; width: 31px; height: 18px; padding: 0; border: 0; border-radius: 99px; background: #d7ddd8; cursor: pointer; transition: background .18s; }
+    .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0002; transition: transform .18s; }
+    .toggle[aria-checked="true"] { background: var(--brand); }
+    .toggle[aria-checked="true"]::after { transform: translateX(13px); }
+    .privacy-note { display: flex; gap: 9px; padding: 11px 12px; border: 1px solid #e3ede5; border-radius: 10px; color: #5d6e63; background: #f6faf6; font-size: 10px; line-height: 1.55; }
+    .privacy-note svg { width: 15px; height: 15px; flex: none; margin-top: 1px; color: var(--brand); }
+    .result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+    .result-title { margin: 0; font-size: 14px; font-weight: 730; }
+    .result-subtitle { margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .head-actions { display: flex; align-items: center; gap: 7px; flex: none; }
+    .count-pill { padding: 5px 9px; color: var(--brand-dark); background: var(--brand-wash); border-radius: 999px; font-size: 10px; font-weight: 650; }
+    .view-tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid #e8ece8; border-radius: 9px; background: #f8f9f8; }
+    .view-tab { padding: 5px 9px; border: 0; border-radius: 6px; color: #7c8781; background: transparent; font-size: 10px; cursor: pointer; }
+    .view-tab.active { color: #33423a; background: #fff; box-shadow: 0 1px 3px #182b1e12; font-weight: 650; }
+    .results-panel { padding: 18px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    .section-heading h2 { margin: 0; font-size: 13px; font-weight: 720; }
+    .section-caption { color: var(--muted); font-size: 10px; }
+    .matrix-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .matrix-col { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #fcfdfc; }
+    .matrix-col h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 10px; font-size: 11px; font-weight: 700; }
+    .matrix-icon { width: 21px; height: 21px; display: grid; place-items: center; border-radius: 7px; font-size: 10px; }
+    .matrix-col.consensus h3 { color: #2f7953; }
+    .matrix-col.consensus .matrix-icon { color: #2f7953; background: #eaf5ee; }
+    .matrix-col.divergence h3 { color: #456b94; }
+    .matrix-col.divergence .matrix-icon { color: #456b94; background: #edf3fa; }
+    .matrix-col.risks h3 { color: #a36416; }
+    .matrix-col.risks .matrix-icon { color: #a36416; background: #fff3df; }
+    .matrix-item { padding: 9px 0; border-top: 1px solid #edf0ed; font-size: 11px; line-height: 1.65; }
+    .matrix-item:first-of-type { border-top: 0; padding-top: 0; }
+    .matrix-item strong { font-weight: 670; }
+    .matrix-source { display: block; margin-top: 4px; color: #98a19b; font-size: 9px; }
+    .matrix-empty { padding: 10px 0; color: #8b9690; font-size: 10px; line-height: 1.6; }
+    .card-summary {
+      padding: 15px 16px; border: 1px solid #deebe2; border-radius: 12px;
+      background: linear-gradient(135deg,#f6faf6,#fbfcfa);
+    }
+    .summary-label { display: flex; align-items: center; gap: 6px; color: var(--brand); font-size: 10px; font-weight: 720; }
+    .summary-text { margin-top: 6px; color: #293a31; font-size: 14px; line-height: 1.75; font-weight: 560; }
+    .card-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+    .field { padding: 11px; border: 1px solid #edf0ed; border-radius: 10px; }
+    .field h4 { margin: 0 0 5px; color: #67736d; font-size: 10px; font-weight: 700; }
+    .field p { margin: 0; color: #39453f; font-size: 10px; line-height: 1.65; }
+    .action-link { padding: 0; border: 0; color: var(--brand); background: none; font-size: 10px; font-weight: 650; cursor: pointer; }
+    .answer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 10px; }
+    .answer-toolbar h2 { margin: 0; font-size: 13px; }
+    .toolbar-note { color: var(--muted); font-size: 10px; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .button {
+      min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 0 10px; border: 1px solid #e2e8e3; border-radius: 8px;
+      color: #55615a; background: #fff; font-size: 10px; font-weight: 620; cursor: pointer;
+      transition: border-color .16s, color .16s, background .16s;
+    }
+    .button:hover { border-color: #b7d4c3; color: var(--brand); background: #fbfdfb; }
+    .button.primary { border-color: var(--brand); color: #fff; background: var(--brand); }
+    .button.primary:hover { border-color: var(--brand-dark); background: var(--brand-dark); }
+    .button:disabled { opacity: .45; cursor: not-allowed; }
+    .button svg { width: 13px; height: 13px; }
+    .answer-list { display: grid; gap: 9px; }
+    .answer-card { position: relative; padding: 14px 15px; box-shadow: none; transition: border-color .15s, box-shadow .15s; }
+    .answer-card:hover { border-color: #d2ded5; box-shadow: 0 4px 14px #1c3c2910; }
+    .answer-card.flagged { border-color: #f0d7d2; background: #fffdfc; }
+    .answer-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .answer-number { display: flex; align-items: center; gap: 7px; min-width: 0; color: #68746d; font-size: 10px; }
+    .source-avatar { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; color: #426b55; background: #edf4ee; font-size: 10px; font-weight: 700; }
+    .source-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .answer-select { display: inline-flex; align-items: center; gap: 5px; color: #859089; font-size: 10px; cursor: pointer; }
+    .answer-select input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand); cursor: pointer; }
+    .answer-text { margin: 9px 0 0; color: #303b35; font-size: 12px; line-height: 1.8; }
+    .answer-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 7px; border-radius: 6px; color: #66726b; background: #f1f3f1; font-size: 9px; white-space: nowrap; }
+    .tag.green { color: #34734f; background: #edf6ef; }
+    .tag.blue { color: #496d96; background: #eff4fa; }
+    .tag.amber { color: #9a661e; background: var(--amber-wash); }
+    .tag.red { color: #a8453b; background: var(--red-wash); }
+    .answer-meta-spacer { flex: 1; }
+    .source-link { display: inline-flex; align-items: center; gap: 3px; color: var(--brand); text-decoration: none; font-size: 10px; font-weight: 650; }
+    .source-link:hover { text-decoration: underline; }
+    .reason { width: 100%; margin-top: 7px; color: #96644d; font-size: 10px; }
+    .reason-label { margin-right: 4px; color: #a9785c; font-weight: 650; }
+    .trace-list { display: grid; gap: 0; }
+    .trace-item { position: relative; display: grid; grid-template-columns: 19px 1fr auto; gap: 8px; align-items: start; min-height: 39px; color: #56625b; font-size: 10px; }
+    .trace-item:not(:last-child)::after { content: ""; position: absolute; left: 7px; top: 18px; bottom: -1px; border-left: 1px dashed #dce4dd; }
+    .trace-point { position: relative; z-index: 1; width: 15px; height: 15px; display: grid; place-items: center; border: 1px solid #dce9df; border-radius: 50%; color: var(--brand); background: #f1f8f3; font-size: 8px; }
+    .trace-value { color: #89948e; font-size: 9px; text-align: right; }
+    .trace-item:last-child { min-height: 16px; }
+    .api-error {
+      display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 12px 14px;
+      border: 1px solid #f0d2cd; border-radius: 11px; color: #873e35; background: #fff6f4;
+      font-size: 11px; line-height: 1.6;
+    }
+    .api-error strong { display: block; margin-bottom: 2px; }
+    .api-error svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+    .skeleton { overflow: hidden; position: relative; background: #eff2ef; border-radius: 8px; }
+    .skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent); animation: shimmer 1.25s infinite; }
+    @keyframes shimmer { to { transform: translateX(100%); } }
+    .loading-card { display: grid; gap: 13px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+    .loading-line { height: 10px; }
+    .loading-line.short { width: 34%; }
+    .loading-line.long { width: 91%; }
+    .loading-line.medium { width: 67%; }
+    .notice { margin-top: 10px; padding: 10px 11px; border-radius: 9px; color: #765925; background: #fff8e9; font-size: 10px; line-height: 1.65; }
+    .notice strong { color: #825a13; }
+    .modal-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(21,32,27,.42); }
+    .modal { width: min(620px,100%); max-height: min(82vh,760px); overflow: auto; border: 1px solid #e5e9e5; border-radius: 18px; background: #fff; box-shadow: 0 24px 80px #10201533; }
+    .modal-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 17px 20px; border-bottom: 1px solid var(--line); background: #fff; }
+    .modal-head h2 { margin: 0; font-size: 15px; }
+    .icon-button { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: #65716a; background: #fff; cursor: pointer; }
+    .icon-button:hover { color: var(--ink); background: #f5f7f5; }
+    .modal-body { padding: 18px 20px 21px; }
+    .modal-intro { margin: 0 0 14px; color: var(--muted); font-size: 11px; }
+    .compose-doc { padding: 15px; border: 1px solid #e7ece8; border-radius: 11px; background: #fbfcfb; }
+    .compose-doc h3 { margin: 0 0 11px; font-size: 15px; }
+    .compose-entry { padding: 10px 0; border-top: 1px solid #e9ede9; }
+    .compose-entry p { margin: 0; font-size: 11px; line-height: 1.7; }
+    .compose-entry small { display: block; margin-top: 5px; color: #78847c; font-size: 9px; }
+    .scene { display: grid; grid-template-columns: 56px 1fr; gap: 11px; padding: 12px 0; border-top: 1px solid #e9ede9; }
+    .scene:first-of-type { border-top: 0; }
+    .scene-number { width: 48px; height: 42px; display: grid; place-items: center; border-radius: 9px; color: var(--brand); background: #edf5ef; font-size: 10px; font-weight: 700; }
+    .scene h4 { margin: 0; font-size: 11px; }
+    .scene p { margin: 3px 0 0; color: #69756e; font-size: 10px; line-height: 1.6; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: minmax(0,1fr) 260px; gap: 13px; }
+      .layout { padding-right: 20px; padding-left: 20px; }
+      .topbar { padding-right: 20px; padding-left: 20px; }
+      .matrix-grid { gap: 7px; }
+      .matrix-col { padding: 10px; }
+    }
+    @media (max-width: 780px) {
+      .workspace { grid-template-columns: 1fr; }
+      .side-column { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .side-column .privacy-note { grid-column: 1 / -1; }
+      .hero { margin-bottom: 22px; }
+      .layout { padding-top: 26px; }
+    }
+    @media (max-width: 560px) {
+      .topbar { height: 58px; padding: 0 15px; }
+      .brand-caption, .trust-note { display: none; }
+      .top-right { gap: 0; }
+      .layout { padding: 24px 14px 50px; }
+      h1 { font-size: 29px; letter-spacing: -1px; }
+      .hero-copy { max-width: 310px; margin: 8px auto 18px; font-size: 12px; }
+      .search-shell { gap: 8px; padding-left: 12px; }
+      .search-shell input { font-size: 13px; }
+      .search-button { min-width: 75px; padding: 0 10px; }
+      .shortcut { display: none; }
+      .suggestions { gap: 6px; }
+      .suggestion { padding: 6px 9px; font-size: 10px; }
+      .side-column { grid-template-columns: 1fr; }
+      .matrix-grid { grid-template-columns: 1fr; }
+      .matrix-col { padding: 12px; }
+      .card-fields { grid-template-columns: 1fr; }
+      .results-panel { padding: 13px; }
+      .result-head { align-items: flex-start; }
+      .head-actions { align-items: flex-end; flex-direction: column-reverse; }
+      .answer-toolbar { align-items: flex-start; flex-direction: column; }
+      .answer-toolbar .button-row { width: 100%; }
+      .answer-toolbar .button { flex: 1; }
+      .empty-state { min-height: 245px; padding: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="知鉴 Search 首页">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 5.5h8.2a3.3 3.3 0 0 1 3.3 3.3V19H8.3A3.3 3.3 0 0 0 5 22V5.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M19 5.5h-2.5M8 9h4.5M8 12.5h4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </span>
+      <span><span class="brand-name">知鉴 <span>Search</span></span><span class="brand-caption">知乎增强检索 · 信息审校层</span></span>
+    </a>
+    <div class="top-right">
+      <span class="trust-note">让每个结论，都有来处</span>
+      <span class="mode-pill"><i class="mode-dot"></i><span id="mode-label">离线数据 · 零 API 额度</span></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="eyebrow"><span class="eyebrow-mark"></span> SEARCH WITH PERSPECTIVE</div>
+      <h1 id="hero-title">搜索，不止于找到答案</h1>
+      <p class="hero-copy">多看几种观点，辨一辨信息时效，再决定什么值得相信。</p>
+      <form class="search-shell" id="search-form">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <label class="sr-only" for="query">输入你想了解的问题</label>
+        <input id="query" name="query" autocomplete="off" placeholder="输入一个问题，例如：考研到底值不值得？" />
+        <button class="search-button" id="search-button" type="submit"><span id="search-button-label">开始检索</span></button>
+      </form>
+      <div class="suggestions" aria-label="试试这些问题">
+        <button class="suggestion" type="button" data-query="大学生第一台笔记本电脑怎么选？">大学生笔记本怎么选</button>
+        <button class="suggestion" type="button" data-query="考研到底值不值得？二战要不要？">考研值不值得</button>
+        <button class="suggestion" type="button" data-query="新手健身先增肌还是先减脂？">新手健身怎么开始</button>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="main-column" aria-live="polite">
+        <div id="api-error" class="api-error" role="alert" hidden>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5v5M12 16.2v.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          <div><strong>连接检索服务失败</strong><span id="error-message"></span></div>
+        </div>
+        <div id="loading-state" class="loading-card" hidden aria-label="正在检索">
+          <div class="skeleton loading-line short"></div><div class="skeleton loading-line long"></div>
+          <div class="skeleton loading-line medium"></div><div class="skeleton loading-line long"></div>
+        </div>
+        <div id="empty-state" class="empty-state">
+          <div class="empty-inner">
+            <div class="empty-art" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6.5h14M5 12h9M5 17.5h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="17.5" cy="16.5" r="3.5" fill="#eaf5ef" stroke="currentColor" stroke-width="1.5"/><path d="m20 19 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+            <h2>从一个具体问题开始</h2>
+            <p>知鉴会把检索依据、观点共识与分歧一并呈现。答案只是参考，判断留给你。</p>
+          </div>
+        </div>
+        <div id="results" hidden></div>
+      </section>
+
+      <aside class="side-column" aria-label="检索设置与说明">
+        <section class="panel">
+          <h2 class="panel-title">审校偏好 <span class="panel-hint">即时生效</span></h2>
+          <div class="control-group">
+            <label class="control-label" for="time-window">内容时效</label>
+            <select class="select" id="time-window">
+              <option value="0">不限时间</option><option value="90">近 3 个月</option>
+              <option value="180">近半年</option><option value="365">近 1 年</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="credibility-threshold"><span>可信度下限</span><span id="threshold-label" class="range-value">不限</span></label>
+            <div class="range-line"><input id="credibility-threshold" type="range" min="0" max="0.8" step="0.1" value="0" aria-label="可信度下限" /></div>
+          </div>
+          <div class="control-group">
+            <div class="toggle-row"><span>优先展示非推广内容</span><button class="toggle" type="button" role="switch" aria-checked="true" data-option="filter_ad" aria-label="优先展示非推广内容"></button></div>
+            <div class="toggle-row"><span>结构化摘要卡片</span><button class="toggle" type="button" role="switch" aria-checked="true" data-option="enable_card" aria-label="结构化摘要卡片"></button></div>
+            <div class="toggle-row"><span>观点对照矩阵</span><button class="toggle" type="button" role="switch" aria-checked="true" data-option="enable_matrix" aria-label="观点对照矩阵"></button></div>
+            <div class="toggle-row"><span>知乎直答基线对照</span><button class="toggle" type="button" role="switch" aria-checked="true" data-option="include_baseline" aria-label="知乎直答基线对照"></button></div>
+          </div>
+        </section>
+
+        <section class="panel" id="trace-panel">
+          <h2 class="panel-title">检索链路 <span class="panel-hint">过程可解释</span></h2>
+          <div id="trace-content" class="trace-list">
+            <div class="trace-item"><span class="trace-point">1</span><span>问题改写与意图识别</span><span class="trace-value">待检索</span></div>
+            <div class="trace-item"><span class="trace-point">2</span><span>多源内容召回</span><span class="trace-value">—</span></div>
+            <div class="trace-item"><span class="trace-point">3</span><span>时效校验</span><span class="trace-value">—</span></div>
+            <div class="trace-item"><span class="trace-point">4</span><span>可信度质检</span><span class="trace-value">—</span></div>
+            <div class="trace-item"><span class="trace-point">5</span><span>相关性综合重排</span><span class="trace-value">—</span></div>
+          </div>
+        </section>
+        <div class="privacy-note">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5.5c0 4.3-2.9 7.7-7 9.5-4.1-1.8-7-5.2-7-9.5V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span><strong>不替你下结论。</strong>过滤是辅助，不是裁决；低可信内容会被标注原因，而非悄悄删除。</span>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="modal-root"></div>
+
+  <script>
+    (() => {
+      const api = (localStorage.getItem('ZHIJIAN_API') || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+      const intentLabels = { compare: '对比选购', experience: '经验查询', controversy: '争议话题', general: '综合探索' };
+      const optionState = { filter_ad: true, enable_card: true, enable_matrix: true, include_baseline: true };
+      const el = (id) => document.getElementById(id);
+      const queryInput = el('query');
+      let result = null;
+      let llmMode = '';
+      let activeView = 'matrix';
+      let selectedAnswers = new Set();
+      let lastQuery = '';
+
+      const escapeHtml = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
+      const score = (value) => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—';
+      const safeLink = (url) => {
+        try {
+          const parsed = new URL(url, window.location.href);
+          return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.href : '';
+        } catch (_) { return ''; }
+      };
+
+      function setLoading(isLoading) {
+        el('loading-state').hidden = !isLoading;
+        el('empty-state').hidden = isLoading || !!result;
+        el('results').hidden = isLoading || !result;
+        el('search-button').disabled = isLoading;
+        el('search-button-label').textContent = isLoading ? '检索中…' : '开始检索';
+      }
+
+      function traceRows(items) {
+        const detail = {};
+        (items || []).forEach((item) => { if (item && item.stage) detail[item.stage] = item; });
+        const stages = [
+          ['query_rewrite', '问题改写与意图识别', (t) => `${(t.subqueries || []).length} 个子查询`],
+          ['recall', '多源内容召回', (t) => `${t.questions || 0} 问 · ${t.answers || 0} 答`],
+          ['freshness', '时效校验', (t) => `${t.after || 0} 条保留 · ${t.stale || 0} 条过时`],
+          ['credibility', '可信度质检', (t) => `${t.ad_suspect || 0} 条疑似推广`],
+          ['rerank', '综合相关性重排', (t) => t.top_score == null ? '暂无有效结果' : `Top ${score(t.top_score)}`]
+        ];
+        return stages.map(([key, title, format], index) => {
+          const item = detail[key];
+          return `<div class="trace-item"><span class="trace-point">${index + 1}</span><span>${title}</span><span class="trace-value">${item ? escapeHtml(format(item)) : '—'}</span></div>`;
+        }).join('');
+      }
+
+      function matrixSection() {
+        if (!optionState.enable_matrix) return '';
+        const matrices = result.matrices || [];
+        if (!matrices.length) return `<div class="matrix-wrap" style="padding:16px"><div class="section-caption">本次没有足够证据形成观点矩阵。</div></div>`;
+        const m = matrices[0].matrix || {};
+        const columns = [
+          { key: 'consensus', name: '共识', icon: '✓', cls: 'consensus' },
+          { key: 'divergence', name: '真实分歧', icon: '⇄', cls: 'divergence' },
+          { key: 'risks', name: '风险提醒', icon: '!', cls: 'risks' }
+        ];
+        const body = columns.map((col) => {
+          const entries = Array.isArray(m[col.key]) ? m[col.key] : [];
+          const content = entries.length ? entries.map((item) => {
+            const title = item.stance ? `<strong>${escapeHtml(item.stance)}：</strong>` : '';
+            const text = item.point || item.argument || '';
+            const ids = Array.isArray(item.support_ids) && item.support_ids.length ? `来源回答 #${item.support_ids.join('、')}` : '';
+            return `<div class="matrix-item">${title}${escapeHtml(text)}${ids ? `<span class="matrix-source">${ids}</span>` : ''}</div>`;
+          }).join('') : `<div class="matrix-empty">${col.key === 'divergence' ? '未发现有充分依据的真实分歧，不强行制造对立。' : '当前资料未提供足够依据。'}</div>`;
+          return `<section class="matrix-col ${col.cls}"><h3><span class="matrix-icon">${col.icon}</span>${col.name}<span class="panel-hint">${entries.length} 条</span></h3>${content}</section>`;
+        }).join('');
+        return `<div class="matrix-wrap" style="padding:14px"><div class="section-heading"><h2>${escapeHtml(matrices[0].question || '观点对照')}</h2><span class="section-caption">仅呈现来源支持的观点</span></div><div class="matrix-grid">${body}</div></div>`;
+      }
+
+      function cardSection() {
+        if (!optionState.enable_card) return '';
+        const cards = result.cards || [];
+        if (!cards.length) return `<div class="matrix-wrap" style="padding:16px"><div class="section-caption">暂无可展示的结构化摘要。</div></div>`;
+        const item = cards[0];
+        const card = item.card || {};
+        const fields = [
+          ['适用前提', card.preconditions], ['优势', card.pros], ['需要权衡', card.cons],
+          ['容易忽略', card.pitfalls], ['风险提醒', card.risk_notes]
+        ].filter((field) => Array.isArray(field[1]) && field[1].length);
+        const fieldHtml = fields.map(([title, values]) => `<div class="field"><h4>${escapeHtml(title)}</h4><p>${values.map(escapeHtml).join('；')}</p></div>`).join('');
+        const videoButton = result.answers && result.answers.length > 1
+          ? `<button class="button" type="button" data-action="video">生成科普分镜</button>` : '';
+        return `<div class="matrix-wrap" style="padding:15px"><div class="section-heading"><div><h2>${escapeHtml(item.question || '结构化摘要')}</h2><span class="section-caption">根据同一问题下的多条回答摘要聚合</span></div>${videoButton}</div><div class="card-summary"><div class="summary-label">✳ 综合判断 · 保留条件</div><div class="summary-text">${escapeHtml(card.core_conclusion || '未能从当前来源中提炼出明确结论。')}</div></div>${fieldHtml ? `<div class="card-fields">${fieldHtml}</div>` : ''}<div class="notice"><strong>摘要边界：</strong>内容为问题级摘要聚合，不等于原文全文；请结合下方来源与适用条件判断。</div></div>`;
+      }
+
+      function answerRows() {
+        const threshold = Number(el('credibility-threshold').value) || 0;
+        const filtered = (result.answers || []).map((answer, index) => ({ answer, index }))
+          .filter(({ answer }) => Number(answer.credibility || 0) >= threshold);
+        if (!filtered.length) return `<div class="empty-state" style="min-height:145px"><div class="empty-inner"><h2 style="font-size:14px">当前阈值下没有匹配内容</h2><p>降低可信度下限，或调整时效条件后重新检索。</p></div></div>`;
+        return filtered.map(({ answer, index }) => {
+          const isAd = !!answer.is_ad_suspect;
+          const cred = Number(answer.credibility || 0);
+          const credClass = cred >= .7 ? 'green' : cred >= .5 ? 'amber' : 'red';
+          const age = Number(answer.age_days);
+          const freshness = score(answer.freshness_score);
+          const url = safeLink(answer.url);
+          const selected = selectedAnswers.has(index);
+          const reasons = Array.isArray(answer.credibility_reasons) ? answer.credibility_reasons.filter(Boolean) : [];
+          const reasonText = reasons.length ? reasons.join('；') : (isAd ? '存在促销、引流或绝对化宣传信号。' : '');
+          const person = (answer.author_signature || '知乎答主').trim();
+          return `<article class="answer-card ${isAd || cred < .5 ? 'flagged' : ''}">
+            <div class="answer-topline"><div class="answer-number"><span class="source-avatar">${escapeHtml(person.slice(0,1))}</span><span class="source-name">${escapeHtml(person)}</span><span>·</span><span>回答 ${index + 1}</span></div><label class="answer-select"><input type="checkbox" data-select="${index}" ${selected ? 'checked' : ''} aria-label="精选这条回答" />加入精选</label></div>
+            <p class="answer-text">${escapeHtml(answer.content_text || '')}</p>
+            <div class="answer-meta">
+              <span class="tag blue">综合 ${score(answer.final_score)}</span>
+              <span class="tag ${credClass}" title="${escapeHtml(reasonText || '综合语义与客观互动信号评估')}">可信 ${score(cred)}</span>
+              <span class="tag ${answer.is_stale ? 'amber' : 'green'}" title="时效评分：${freshness}">${answer.is_stale ? '内容较旧' : '时效较新'} · ${Number.isFinite(age) ? `${age} 天前` : freshness}</span>
+              ${isAd ? '<span class="tag red">疑似推广</span>' : ''}
+              <span class="tag">赞同 ${Number(answer.vote_up_count || 0).toLocaleString('zh-CN')}</span>
+              <span class="tag">评论 ${Number(answer.comment_count || 0).toLocaleString('zh-CN')}</span>
+              <span class="answer-meta-spacer"></span>
+              ${url ? `<a class="source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>` : '<span class="tag">来源链接不可用</span>'}
+              ${reasonText ? `<div class="reason"><span class="reason-label">审校说明</span>${escapeHtml(reasonText)}</div>` : ''}
+            </div>
+          </article>`;
+        }).join('');
+      }
+
+      function render() {
+        if (!result) return;
+        el('empty-state').hidden = true;
+        el('results').hidden = false;
+        el('trace-content').innerHTML = traceRows(result.trace);
+        const answers = result.answers || [];
+        const goodCount = answers.filter((answer) => Number(answer.credibility || 0) >= .7 && !answer.is_ad_suspect).length;
+        const lowQuality = answers.length === 0 || goodCount === 0;
+        const selectedView = activeView === 'matrix' ? matrixSection() : cardSection();
+        const otherViewAvailable = activeView === 'matrix' ? optionState.enable_card : optionState.enable_matrix;
+        const otherView = otherViewAvailable ? `<button class="view-tab" type="button" data-view="${activeView === 'matrix' ? 'card' : 'matrix'}">切换到${activeView === 'matrix' ? '摘要卡片' : '观点矩阵'}</button>` : '';
+        const baseline = optionState.include_baseline && result.zhida_baseline
+          ? `<details style="margin-top:11px"><summary class="action-link" style="cursor:pointer">查看知乎直答基线对照</summary><div class="notice" style="margin-top:8px;color:#66736d;background:#f5f7f5">${escapeHtml(result.zhida_baseline)}</div></details>` : '';
+        const fallback = lowQuality
+          ? `<div class="notice"><strong>本次未找到足够的高可信内容。</strong>以下内容仅供核验，不会强行拼凑为确定答案。</div>` : '';
+        const mockNotice = llmMode === 'mock'
+          ? `<div class="notice"><strong>规则模拟模式：</strong>可信度、结构化摘要与观点矩阵由模板/规则模拟，仅用于离线演示流程，不代表真实模型判断或观点归纳。</div>` : '';
+        const viewTabs = optionState.enable_matrix && optionState.enable_card
+          ? `<div class="view-tabs"><button type="button" class="view-tab ${activeView === 'matrix' ? 'active' : ''}" data-view="matrix">观点矩阵</button><button type="button" class="view-tab ${activeView === 'card' ? 'active' : ''}" data-view="card">摘要卡片</button></div>` : '';
+        const countLabel = `${answers.length} 条来源`;
+        el('results').innerHTML = `
+          <div class="result-head">
+            <div><h2 class="result-title">关于「${escapeHtml(result.query || lastQuery)}」</h2><div class="result-subtitle">识别为${escapeHtml(intentLabels[result.intent] || result.intent || '综合探索')} · 由多个来源交叉审校</div></div>
+            <div class="head-actions"><span class="count-pill">${countLabel}</span>${viewTabs}</div>
+          </div>
+          ${fallback}
+          ${mockNotice}
+          <section class="results-panel">${selectedView}</section>
+          ${baseline}
+          <div class="answer-toolbar">
+            <div><h2>来源回答 <span class="panel-hint">${answers.length} 条召回 · 可信度按设置筛选</span></h2><div class="toolbar-note">可疑内容保留并标注，让审校过程透明可见。</div></div>
+            <div class="button-row"><button type="button" class="button" data-action="clear-selection" ${selectedAnswers.size ? '' : 'disabled'}>清空选择</button><button type="button" class="button primary" data-action="compose" ${selectedAnswers.size ? '' : 'disabled'}>整合所选 ${selectedAnswers.size ? `(${selectedAnswers.size})` : ''}</button></div>
+          </div>
+          <div class="answer-list">${answerRows()}</div>`;
+      }
+
+      async function search(query) {
+        const cleaned = query.trim();
+        if (!cleaned) {
+          queryInput.focus();
+          queryInput.setAttribute('aria-invalid', 'true');
+          return;
+        }
+
+        queryInput.removeAttribute('aria-invalid');
+        lastQuery = cleaned;
+        selectedAnswers = new Set();
+        result = null;
+        el('api-error').hidden = true;
+        setLoading(true);
+        const options = Object.assign({}, optionState, { time_window_days: Number(el('time-window').value) || 0 });
+        try {
+          const response = await fetch(`${api}/api/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: cleaned, options })
+          });
+          if (!response.ok) throw new Error(`检索服务返回 HTTP ${response.status}`);
+          const data = await response.json();
+          if (!data || !Array.isArray(data.answers) || !Array.isArray(data.trace)) throw new Error('检索服务返回的数据格式不正确');
+          result = data;
+          activeView = optionState.enable_matrix ? 'matrix' : 'card';
+          el('trace-content').innerHTML = traceRows(result.trace);
+          setLoading(false);
+          render();
+        } catch (error) {
+          setLoading(false);
+          el('empty-state').hidden = false;
+          el('api-error').hidden = false;
+          el('error-message').textContent = `${error.message || '网络请求失败'}。请确认后端已启动：uvicorn backend.main:app --reload --port 8000。API 地址：${api}`;
+        }
+      }
+
+      async function loadHealth() {
+        try {
+          const response = await fetch(`${api}/`);
+          if (!response.ok) throw new Error(`健康检查返回 HTTP ${response.status}`);
+          const health = await response.json();
+          llmMode = health.llm_mode || '';
+          const sourceMode = health.data_mode === 'offline' ? '离线数据' : `${health.data_mode || '未知'} 数据`;
+          const modelMode = llmMode === 'mock' ? '规则模拟' : llmMode === 'api' ? '模型 API' : '模型状态未知';
+          el('mode-label').textContent = `${sourceMode} · ${modelMode}`;
+          if (result) render();
+        } catch (_) {
+          el('mode-label').textContent = '本地检索服务未连接';
+        }
+      }
+
+      function openModal(title, body, actions) {
+        el('modal-root').innerHTML = `<div class="modal-backdrop" data-action="backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-head"><h2 id="modal-title">${escapeHtml(title)}</h2><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭">×</button></header><div class="modal-body">${body}${actions || ''}</div></section></div>`;
+        el('modal-root').querySelector('.modal').focus();
+      }
+
+      function composeSelection() {
+        const rows = [...selectedAnswers].map((index) => (result.answers || [])[index]).filter(Boolean);
+        if (!rows.length) return;
+        const entries = rows.map((answer, i) => {
+          const url = safeLink(answer.url);
+          const labels = [`可信度 ${score(answer.credibility)}`, `时效 ${score(answer.freshness_score)}`];
+          if (answer.is_stale) labels.push('内容较旧');
+          if (answer.is_ad_suspect) labels.push('疑似推广');
+          return `<div class="compose-entry"><p><strong>${i + 1}. ${escapeHtml(answer.author_signature || '来源回答')}</strong></p><p>${escapeHtml(answer.content_text || '')}</p><small>${labels.map(escapeHtml).join(' · ')}${url ? ` · <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>` : ''}</small></div>`;
+        }).join('');
+        const actions = `<div class="modal-actions"><button type="button" class="button" data-action="close-modal">返回</button><button type="button" class="button primary" data-action="export-markdown">导出 Markdown</button></div>`;
+        openModal('你的精选资料', `<p class="modal-intro">本地按所选回答拼接，不调用模型；保留原始来源与审校标签。</p><article class="compose-doc"><h3>${escapeHtml(lastQuery)} · 精选</h3>${entries}</article>`, actions);
+      }
+
+      function exportMarkdown() {
+        const rows = [...selectedAnswers].map((index) => (result.answers || [])[index]).filter(Boolean);
+        const lines = [`# ${lastQuery} · 精选资料`, '', '> 本地拼接自检索结果。可信度与时效为系统辅助评估，请结合原文判断。', ...(llmMode === 'mock' ? ['> 当前为 LLM 规则模拟模式，摘要和观点矩阵仅用于原型演示。'] : []), ''];
+        rows.forEach((answer, index) => {
+          lines.push(`## ${index + 1}. ${answer.author_signature || '来源回答'}`, '', answer.content_text || '', '');
+          lines.push(`- 可信度：${score(answer.credibility)}　时效：${score(answer.freshness_score)}${answer.is_stale ? '　内容较旧' : ''}${answer.is_ad_suspect ? '　疑似推广' : ''}`);
+          if (safeLink(answer.url)) lines.push(`- 原文：[查看知乎回答](${answer.url})`);
+          lines.push('');
+        });
+        const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+        const link = document.createElement('a');
+        const downloadUrl = URL.createObjectURL(blob);
+        link.href = downloadUrl;
+        link.download = `${lastQuery.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50)}-精选.md`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      }
+
+      function showStoryboard() {
+        const card = (result.cards || [])[0] && (result.cards[0].card || {});
+        const scenes = [
+          ['开场 · 提出问题', `围绕「${lastQuery}」，先说明这不是只有一个标准答案的问题。`],
+          ['拆解 · 适用条件', (card && card.preconditions && card.preconditions[0]) || '先看目标、背景与个人条件，再评估不同选择。'],
+          ['对照 · 不同观点', ((result.matrices || [])[0] && (result.matrices[0].matrix.divergence || [])[0] && (result.matrices[0].matrix.divergence[0].argument || '')) || '对照现有回答中的共识与真实分歧，避免把少数观点当成定论。'],
+          ['收尾 · 提醒核验', '回到原始来源核对信息时效与适用范围，再做自己的判断。']
+        ];
+        const sceneHtml = scenes.map((scene, index) => `<div class="scene"><span class="scene-number">镜头 0${index + 1}</span><div><h4>${escapeHtml(scene[0])}</h4><p>${escapeHtml(scene[1])}</p></div></div>`).join('');
+        openModal('科普分镜预览', `<p class="modal-intro">这是可交互原型中的脚本预览，不是已生成视频；分镜内容仅引用当前摘要与观点。</p>${sceneHtml}<div class="notice">后续可接入脚本生成、生图、字幕与 HTML 分镜播放器。本原型不生成或伪装成真实视频。</div>`);
+      }
+
+      el('search-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        search(queryInput.value);
+      });
+      document.querySelectorAll('.suggestion').forEach((button) => button.addEventListener('click', () => {
+        queryInput.value = button.dataset.query || '';
+        search(queryInput.value);
+      }));
+      document.querySelectorAll('.toggle').forEach((button) => button.addEventListener('click', () => {
+        const next = button.getAttribute('aria-checked') !== 'true';
+        button.setAttribute('aria-checked', String(next));
+        optionState[button.dataset.option] = next;
+        if (result) {
+          if (button.dataset.option === 'filter_ad' && lastQuery) {
+            search(lastQuery);
+            return;
+          }
+          if (!optionState[activeView === 'matrix' ? 'enable_matrix' : 'enable_card']) {
+            activeView = optionState.enable_matrix ? 'matrix' : 'card';
+          }
+          render();
+        }
+      }));
+      el('credibility-threshold').addEventListener('input', (event) => {
+        const value = Number(event.target.value);
+        el('threshold-label').textContent = value === 0 ? '不限' : `≥ ${value.toFixed(1)}`;
+        if (result) render();
+      });
+      el('time-window').addEventListener('change', () => {
+        if (result && lastQuery) search(lastQuery);
+      });
+      el('results').addEventListener('click', (event) => {
+        const viewButton = event.target.closest('[data-view]');
+        if (viewButton) { activeView = viewButton.dataset.view; render(); return; }
+        const action = event.target.closest('[data-action]');
+        if (!action) return;
+        if (action.dataset.action === 'compose') composeSelection();
+        if (action.dataset.action === 'clear-selection') { selectedAnswers.clear(); render(); }
+        if (action.dataset.action === 'export-markdown') exportMarkdown();
+        if (action.dataset.action === 'video') showStoryboard();
+      });
+      el('results').addEventListener('change', (event) => {
+        const input = event.target.closest('[data-select]');
+        if (!input) return;
+        const index = Number(input.dataset.select);
+        if (input.checked) selectedAnswers.add(index);
+        else selectedAnswers.delete(index);
+        render();
+      });
+      el('modal-root').addEventListener('click', (event) => {
+        if (event.target.dataset.action === 'close-modal' || event.target.dataset.action === 'backdrop') {
+          el('modal-root').innerHTML = '';
+        }
+        if (event.target.dataset.action === 'export-markdown') exportMarkdown();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') el('modal-root').innerHTML = '';
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') search(queryInput.value);
+      });
+      loadHealth();
+    })();
+  </script>
+</body>
+</html>

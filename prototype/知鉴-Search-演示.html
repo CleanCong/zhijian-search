@@ -249,7 +249,7 @@
   .item{
     padding:19px 0 18px;
     border-bottom:1px solid var(--line-soft);
-    display:flex;gap:16px;
+    display:flex;gap:13px;
   }
   .item:last-child{border-bottom:none;}
   .item .body{flex:1;min-width:0;}
@@ -437,6 +437,20 @@
     #home h1{font-size:22px;}
     .home-foot{display:none;}
   }
+
+  /* --- 真实数据渲染补充 --- */
+  .item .q-title{
+    font-size:13px;color:var(--ink-3);line-height:1.65;
+    margin-bottom:7px;font-weight:500;
+  }
+  .item .more{
+    font-size:12px;color:var(--accent);background:none;border:none;
+    padding:0;margin:-4px 0 10px;cursor:pointer;
+  }
+  .item .more:hover{text-decoration:underline;}
+  .result-foot .mode-note{font-size:11.5px;color:var(--warn);}
+  .item .ellip{color:var(--ink-4);}
+  .hid .ellip{color:#B5B2A8;}
 </style>
 </head>
 <body>
@@ -536,409 +550,669 @@
 </section>
 
 <script>
-/* ===========================================================
-   知鉴 Search · 演示数据（第一阶段全部为本地假数据）
-   替换为真实引擎时，只需保持同名结构即可
-   =========================================================== */
-
-const DATASETS = {
-  /* ---------- 主场景：对比选购 ---------- */
-  vacuum: {
-    id: 'vacuum',
-    query: '2000块左右的扫地机器人，石头和追觅怎么选',
-    intentWord: '对比选购',
-    headline: '这个价位，两家的差距不在扫得干不干净',
-    subline: '差别在「地图会不会丢」和「耗材一年要多少钱」——这两件事，参数表上看不出来。',
-    quickAnswer: [
-      '两千价位两家的清扫能力拉不开差距，实测差异都在噪音和边角覆盖上，日常用几乎察觉不到。',
-      '真正的分水岭是稳定性：石头的地图记忆更稳，追觅早期批次的机器人在多层户型里出现过丢图，需要重新建图。',
-      '如果家里有长发或宠物，优先看主刷结构而不是吸力数字——缠绕清理的频率比吸力大小影响体验更大。',
-      '两家在这个价位的耗材年成本都在 200–350 元区间，别信「耗材终身免费」的说法，通常是首年赠品。'
-    ],
-    consensus: [
-      {
-        text: '两千元档的清扫能力已经过剩。硬地板上的灰尘、毛发、瓜子壳，两家都能一次过，差别要到「缝隙里的细沙」这种极限场景才看得出来。',
-        votes: '21 篇回答里有 17 篇持这个观点',
-        sources: [
-          { author: '陈默', title: '用了三年扫地机，说点参数表不会写的', year: 2025 },
-          { author: '拿铁不加糖', title: '石头 G 系列和追觅 S 系列的长期对比', year: 2024 }
-        ]
+/* 降级用的本地数据：后端连不上时用它，界面会标明「演示数据」 */
+const SEED = {
+  "query": "全屋定制怎么避免被坑",
+  "intent": "renovation",
+  "intent_label": "经验避坑",
+  "mode": "degraded",
+  "degraded_reason": "后端未连接，这是提前存好的一份结果",
+  "answers": [
+    {
+      "id": "-3833733717720296993",
+      "title": "定制全屋定制怎么才能不被坑? - 知乎",
+      "content_text": "但是我却很满意。因为工厂只用热熔胶，无需额外刷万能胶，污染源更少。再加上机器压力均匀，封边条和板材侧边贴合紧密，板材断面被严密包裹，堵住了甲醛最主要的逸出通道。\n贴皮实木柜，是当年大部分家庭的首选。原因很简单，价格适中，安全环保，还有实木外观和名头，当然很诱人喽。\n那么，相隔十几年后，今年我装修房子，还能选择大芯贴皮实木板吗？答案当然是否定的。\n十几年前贴皮板材主流使用脲醛胶，温度升高、遇水就水解，持续释放甲醛，是老大芯板的痛点。\n现在出现了两大无醛路线：\n路线1，MDI无醛胶。胶本身不含甲醛，高温下释放几乎不上涨。而且耐水、热稳定性强，ENF级板材大多用它，非常适配北方地暖房。\n路线二2，大豆蛋白胶等生物胶。植物基，无醛。缺点是耐水略弱，多用于干燥区域柜体，潮湿区慎用。\n两害相权取其轻，经过综合考量，我家选用了ENF级无醛胶，适配北方长达六个月的通暖期。无论温度多高，都不用担心甲醛释放。",
+      "url": "https://www.zhihu.com/question/487373250/answer/2105311455855769434",
+      "author_signature": "听雨",
+      "author_badge": "教师资格证持证人",
+      "vote_up_count": 17,
+      "comment_count": 13,
+      "content_type": "Answer",
+      "age_days": 8,
+      "published_year": 2026,
+      "char_count": 688,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "consensus",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "3085313857513847996",
+      "title": "家装全屋定制有哪些注意事项? - 知乎",
+      "content_text": "判断方法：要求提供对应批次的第三方检测报告，核对送检单位、检测日期与检测对象。部分品牌板材带有防伪标识，可支持正品溯源，可信度更高。\n二、场景化选型：不同需求对应不同选择\n没有绝对的“最好品牌”，根据自身核心需求匹配对应赛道的品牌，性价比最高。\n2.1 看重整家风格统一+有旧房改造需求\n优先选择具备全品类一体化能力的品牌，可实现地板、木门、墙板、柜类风格统一，减少多品牌对接的沟通成本与风格割裂风险。 代表品牌如圣象，打造地门墙柜一体化产品体系，三大风格套系覆盖全品类硬装，还配套旧房焕新服务，采用免拆直铺工艺，单空间最快8小时完成，适配存量房局部改造需求，不用大规模搬家即可完成空间升级。\n2.2 追求标准化省心+刚需自住\n优先选择全国性连锁品牌，产品标准化程度高，售后网络完善，踩坑概率更低。 代表品牌如欧派、索菲亚，产品体系成熟，终端覆盖广泛，服务流程标准，适合追求省心、不想过多折腾的刚需家",
+      "url": "https://www.zhihu.com/question/437960207/answer/2096281886217725321",
+      "author_signature": "元初九",
+      "author_badge": "",
+      "vote_up_count": 6,
+      "comment_count": 0,
+      "content_type": "Answer",
+      "age_days": 33,
+      "published_year": 2026,
+      "char_count": 1059,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "consensus",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "-3337052375414810769",
+      "title": "我接触的精装房全屋定制,哪些隐藏增项真要避坑啊? - 知乎",
+      "content_text": "我干这行快8年，见过精装房做全屋定制最容易踩的隐藏增项，大多是前期报价单上根本不会写、签完合同就挨个蹦出来的窟窿，算下来平白多花两三万是常事。这两年装修旺季的时候，我光在业主群里帮人看报价单，一个月就能碰到七八起被增项坑的例子。上个月跟着师傅去一个精装房现场复尺，业主本来当初报价算的是4万整，最后安装完要结6万多，站在玄关门口盯着报价单发愣的样子，我现在都记得。我记得是这个行业默认把这些项算成额外收费的，也可能记混了，反正我接触过的项目里，没几家会在最开始就把这些钱算进基础报价。\n藏在报价边角的几类常见增项\n基础报价里的五金件、安装工序、异形加工费，是最容易被单独拎出来收费的三类。\n 很多方案里报的基础五金，就是那种最普通的铰链、滑轨，刚装完用着没问题，过个一年半载就开始掉漆、推拉卡壳，想换成阻尼缓冲款、带静音功能的，就得按单个加钱，一个衣柜算下来光五金升级就能多掏小一千。\n对了还有个点要",
+      "url": "https://zhuanlan.zhihu.com/p/2105349277438457420",
+      "author_signature": "金祝贤",
+      "author_badge": "",
+      "vote_up_count": 1,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 8,
+      "published_year": 2026,
+      "char_count": 696,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "consensus",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "-6482348380716983039",
+      "title": "全屋定制想不花冤枉钱不踩坑,先把这5个错误认知从脑子里拿掉! - 知乎",
+      "content_text": "2.封边处本身就不是甲醛的主要释放通道，正反两面才是。相对于封边处的微小面积，正反两个大面才是甲醛释放的“高速公路”。既然甲醛基本上就不从这里走，所以在比较不同封边工艺的时候，根本就不会考虑这一项。\n再回到表格来看，激光封边优于PUR封边的仅有“胶线美观度”这个维度，在耐候性、防潮性、耐热性方面全面落后于PUR封边。\n需要提醒的是，千万不要觉得这个9分和10分差不多，毕竟这位专家给EVA的胶线也打了9分…\n这就是为什么我在社群内一直强调，柜体就用PUR封边，老板给免费升级激光都不要。只有纯色柜门才考虑激光封边。厨卫区域柜体柜门更是建议全部PUR。这才是合理利用不同工艺优势的“最高配置”。无脑激光只会带来高价低质。\n错误认知二：热衷比较“板材类型”而非“具体产品”\n群里经常会看到业主问，欧松板能不能用？密度板是不是最差的？多层板是不是环保达不到enf级？颗粒板是不是很差？诸如此类的问题\n首先",
+      "url": "https://zhuanlan.zhihu.com/p/2087506412905690037",
+      "author_signature": "树上骑个猴",
+      "author_badge": "CPA 注册会计师资格证持证人",
+      "vote_up_count": 8,
+      "comment_count": 3,
+      "content_type": "Article",
+      "age_days": 47,
+      "published_year": 2026,
+      "char_count": 1073,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "disputed",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "-560974567816441017",
+      "title": "国内靠谱的全屋定制生产商 - 知乎",
+      "content_text": "其实找全屋定制，最核心的是先看生产端够不够稳。之前我接触的很多品牌都是展厅好看，实际生产全是外包给小代工厂，展厅给你看ENF级板材，实际生产的时候偷换基材，尤其咱们兰州这边冬天供暖特别干，很多定制的柜子过一个冬天就翘边、封边开胶发黑。 我选阿穆特的时候特意问过生产端的情况，他们是自己投了1.5个亿做的全智能化数字化工厂，完全不把生产单子外发，从哈尔滨起家的时候就是专门针对北方供暖的干燥气候做工艺调整，板材做了二次归方加固，封边用的PUR工艺，连环保都不是只单块板材达标，是整柜安装完的空间环保都能过检测，报告直接随货给业主。工艺是对标进口高定的效果做的，但是定价比同类型进口品牌友好太多，普通家庭也能负担得起。对比下来像欧派、志邦这种大家熟的全国大厂生产端也很稳，但阿穆特的点是不管订单大小，工艺交付标准都是统一的，不会因为你订单量小就给你降工艺。\n之前我差点签了某连锁品牌的套餐，当时销售算的报",
+      "url": "https://zhuanlan.zhihu.com/p/2104518419320149890",
+      "author_signature": "陈琳",
+      "author_badge": "家具制造业 从业者",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 10,
+      "published_year": 2026,
+      "char_count": 806,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "disputed",
+      "sub_query": "全屋定制 安装 尺寸 翻车"
+    },
+    {
+      "id": "-5725033682757294819",
+      "title": "全屋定制怎么避坑?量尺到安装 6 个关键点 - 知乎",
+      "content_text": "全屋定制怎么避坑？量尺到安装 6 个关键点\n全屋定制避坑的核心不在砍价，在签合同前把报价单和设计图逐项对齐。六个节点按顺序是：量尺复尺、设计图确认、板材与封边、五金配置、安装验收、合同增项。其中五金、见光板、非标尺寸三项常被单独加价，逐项写明通常能把总价压下来 5% 到 15%。下面是每个节点具体要看什么。\n一、先说结论：坑都在\"没写进单子\"的地方\n定制柜出问题，多不是板材差，而是口头承诺没落纸。量尺时说的\"包含五金\"、设计时说的\"通顶收口\"，合同里没写，安装时就成了加项。所以这六个节点的共同动作只有一个：确认的事写进单据。\n二、量尺复尺：差 1 厘米，柜子就装不进去\n量尺这一步容易埋雷，三件事必须现场确认：\n- 复尺时间：贴砖、找平完成之后复尺。毛坯尺寸与成活尺寸差值常在 1 到 3 厘米，按毛坯下的单，柜体到场就顶墙。\n- 实际净尺寸：每个位置量三处（上中下、左中右）取偏小值，墙面不直",
+      "url": "https://zhuanlan.zhihu.com/p/2106844565860774748",
+      "author_signature": "马叔",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 3,
+      "published_year": 2026,
+      "char_count": 962,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "pitfalls",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "5605290430126997628",
+      "title": "台州全屋定制怎么选,这几个实用细节帮你避开增项坑 - 知乎",
+      "content_text": "全屋定制的计价方式，是业主踩坑的第一道门槛。目前市面上主流有三种：投影面积（柜子宽×高，按平米算）、展开面积（所有板材铺开算总价）和套餐包（一口价含若干平米柜体）。投影面积看似简单，但柜体深度超过600mm要加钱，层板超过一定数量要加钱，抽屉、拉篮、裤架无一不是增项。展开面积听着透明，但多数业主根本算不清柜子内部用了多少板。套餐包最具诱惑力，却往往藏着“标配”之外的无数个“选配”：标配五金是杂牌、背板厚度从9mm悄悄缩到5mm、非标尺寸柜体直接翻倍计价。有业主反映，他看中的某品牌“19999元全屋定制”套餐，签完合同后才发现连最基本的挂衣杆都要另外收费。\n选服务商，别听销售说得多漂亮，要看四个硬指标。\n第一，报价单是否“裸奔”。\n 一份合格的报价单必须逐项列明：板材品牌、厚度、环保等级（E1还是ENF）、五金件品牌型号数量、设计费、运输费、安装费、上楼费。\n路桥的李女士分享过她的经验：她让",
+      "url": "https://zhuanlan.zhihu.com/p/2093374546116075880",
+      "author_signature": "小土豆88",
+      "author_badge": "",
+      "vote_up_count": 1,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 41,
+      "published_year": 2026,
+      "char_count": 812,
+      "is_ad_suspect": false,
+      "reasons": [
+        "标题带推荐倾向"
+      ],
+      "group": "pitfalls",
+      "sub_query": "全屋定制 增项 报价 有哪些坑"
+    },
+    {
+      "id": "-4906854729814251814",
+      "title": "全屋定制板材怎么选,那种最环保? - 知乎",
+      "content_text": "关键提醒：E0是“能不能卖”的准入门槛，ENF是“分到哪一档”的最高分级，两者性质不同。全屋柜子板材用量大，E0级在叠加效应下仍可能使室内空气超标，所以环保要求高的家庭应直接将目标锁定在ENF级。如果家里有小孩、孕妇或过敏体质成员，ENF级更是必须坚守的硬指标。\n第二步：在ENF级里，哪种基材更“天生环保”?\n不同板材的“环保上限”由其胶水种类和用量决定。即使用同等级别的胶水，用胶量越大，环保风险越高。\n从“天生环保”的角度排序，大致是：欧松板(OSB)＞禾香板>多层板>颗粒板。\n欧松板(OSB)/禾香板：环保天花板的选择\n这两种板材的核心优势在于胶水。欧松板常用MDI胶(聚氨酯胶)，禾香板则以秸秆为原料、同样使用MDI胶，生产过程中不人为添加甲醛，因此做到ENF级是“标配”而非“高配”。欧松板的物理性能也很突出，握钉力强、防潮性优于颗粒板，做柜门不易变形。禾香板防潮性优异，但质地较脆，需",
+      "url": "https://www.zhihu.com/question/464245503/answer/2102060286236800533",
+      "author_signature": "水乡之梦",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Answer",
+      "age_days": 17,
+      "published_year": 2026,
+      "char_count": 1020,
+      "is_ad_suspect": false,
+      "reasons": [
+        "标题带推荐倾向"
+      ],
+      "group": "pitfalls",
+      "sub_query": "全屋定制 板材 环保 怎么选"
+    },
+    {
+      "id": "-3218834654209174927",
+      "title": "全屋定制全是坑!真的不能太老实! - 知乎",
+      "content_text": "全屋定制的行业水极深，第一步计价往往就卡主了消费者。\n第一章:计价与选购拆解商家的“账本”\n1.两种计价方式的底层差异\n投影面积计价(首选)\n公式:衣柜高度x长度\n最透明!一个标准的标配(以670元/平方为例)必须包含:18mm柜体与门板、9mm插槽式背板、衣通、基础五金、每组柜子2个e抽屉，以及量尺、设计、安装、运输、上楼等全套服务。\n展开面积计价（不建议)\n公式:板材总面积x单价\n计算极其复杂!五金、抽屉、拉手全部单算。容易在细节处被商家“蚕食\"利润，非专业人士慎选。\n2.品牌与工厂的博弈\n大品牌：\n颗粒板工艺成熟，售后体系完善。\n但溢价高。\n本地工厂：\n寻找有规模、有展厅、自有安装团队的源头工厂。\n同样的万华、爱格等品牌板材，工厂价能省30%~50%!\n核心是:‘选板材品牌，而非定制门店品牌\"。\n第二章:板材、环保与饰面\n决定柜子的“体质”\n1.板材基材全解析\n颗粒板/欧松板：稳定性",
+      "url": "https://zhuanlan.zhihu.com/p/2029528727718049343",
+      "author_signature": "成都邸颜全屋定制",
+      "author_badge": "",
+      "vote_up_count": 23,
+      "comment_count": 3,
+      "content_type": "Article",
+      "age_days": 217,
+      "published_year": 2026,
+      "char_count": 1054,
+      "is_ad_suspect": true,
+      "reasons": [
+        "发布者昵称像是商家或门店账号"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "5633294446285146375",
+      "title": "2026 上海全屋定制选品牌与避坑:从梯队匹配到验收入住的实操清单 - 知乎",
+      "content_text": "1.亚振家居 A-Zenith 亚振家居是上海本土 A 股上市高端家居品牌，品牌积淀始于 1985 年，1992 年正式创立，2016 年在上交所挂牌上市，同时也是上海市非物质文化遗产 “海派家具制作技艺” 传承保护单位。品牌主打成品家具 + 全屋定制一体化解决方案，拥有多套产品体系，可以落地现代雅奢、东方、法式经典等多种大宅风格。 亚振拥有南通智造基地与定制艺术工场两大生产基地，配备德国豪迈、意大利进口生产设备，把海派家具 36 个工艺环节、400 多道工序的非遗技艺融入现代化数字生产。原料甄选 FAS 级北美黑胡桃、橡木等名贵实木，定制板材采用 ENF 级环保标准，拥有三百余项家具设计专利，斩获德国红点、IF 等国际设计奖项。 品牌先后承接过多届世博会中国馆、人民大会堂、北外滩世界会客厅等大型项目，在上海设有三千平旗舰店，采用项目长制对接大宅整案项目，从设计、生产到安装全流程跟进。不少",
+      "url": "https://zhuanlan.zhihu.com/p/2099866832274511790",
+      "author_signature": "种草测评日记",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 23,
+      "published_year": 2026,
+      "char_count": 1031,
+      "is_ad_suspect": true,
+      "reasons": [
+        "标题符合导购文的标准模板"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "5374628185790013782",
+      "title": "低价套餐套路,哪些是隐形增项 - 知乎",
+      "content_text": "一、低价套餐看着划算，为什么结账时却变贵\n不少全屋定制门店打出三万元搞定全屋柜子、每平米几百元全包的宣传，这类低价套餐对预算紧张的业主很有吸引力。可等到复尺、下单、安装完毕，总价往往比当初高出不少。差额从哪里来？多半来自签约时没写清楚的隐形增项。低价套餐本身未必是陷阱，问题出在报价口径不统一：同样的平米数，有的含五金、有的不含，有的限制柜体数量、有的限制花色。弄懂隐形增项是怎么产生的，才能判断便宜是否真的便宜。\n二、低价套餐的常见套路，拆开看这四类\n套路通常藏在计价方式里。其一，拆项报价。柜体、门板、五金、抽屉分开计价，单看每项都不贵，累加起来却超出预算。其二，限量套餐。标注包含多少平米，超出部分按高价补差，户型稍大便会触发。其三，材料降级。套餐内的板材与花色有限，想换配色或升级材质就得加价。其四，服务模糊。安装、运输、上楼费用不写进合同，施工时按次收取。这些做法让业主在比价时失去参照，签",
+      "url": "https://zhuanlan.zhihu.com/p/2100329336532485728",
+      "author_signature": "宁波原木定制工厂",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 21,
+      "published_year": 2026,
+      "char_count": 626,
+      "is_ad_suspect": true,
+      "reasons": [
+        "发布者昵称像是商家或门店账号"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制 增项 报价 有哪些坑"
+    },
+    {
+      "id": "-3679568616739418278",
+      "title": "2026全屋定制避坑:容易被忽略的5个增项与合同确认方法 - 知乎",
+      "content_text": "投影面积，是按柜体在墙面上的宽乘高算出一个平面面积，再配合约定的计算规则得出结果。它的好处是直观，业主拿图纸也能大致估出来；需要注意的是这个口径里包含哪些内容，层板、背板、抽屉、收口条算不算在内，每一项都要有明确说法。\n展开面积，是把柜体的板件逐块摊开，按实际用料的面积累加。它更贴近实际用料，对结构复杂的柜体反应更敏感，用板越多、内部隔层越多，算出来的面积就越大。它依赖图纸与板件清单，方案在深化过程中调整过，累加结果也会跟着变。\n两种口径本身没有对错，差别在于同一套方案在两种口径下算出来的结果通常不同。业主容易犯的一个判断错误，是把不同口径下的两个数字放在一起比大小，然后把差异理解成某一方多算了。\n结算差异常见的来源有三种。\n一种是报价阶段用一种口径给结果，结算时换成另一种口径。口径换了，基准就变了，数字自然对不上。\n一种是报价单没有写明采用哪一种口径，双方各自的默认理解不同。业主以为是投",
+      "url": "https://zhuanlan.zhihu.com/p/2095940289106015209",
+      "author_signature": "瑞岩家居",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 33,
+      "published_year": 2026,
+      "char_count": 1047,
+      "is_ad_suspect": true,
+      "reasons": [
+        "发布者昵称像是商家或门店账号"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制 增项 报价 有哪些坑"
+    }
+  ],
+  "cards": [
+    {
+      "question": "全屋定制怎么避免被坑",
+      "core_conclusion": "避坑核心是闭口合同锁增项、盯净深尺寸、柜体用PUR封边",
+      "conclusion_confidence": "medium",
+      "key_points": [
+        "要求闭口合同，增项逐项写进报价单",
+        "衣柜看内部净深，600柜体装完会缩水",
+        "柜体选PUR封边，激光只用于纯色柜门"
+      ],
+      "preconditions": [
+        "定制全屋定制怎么才能不被坑? - 知乎",
+        "家装全屋定制有哪些注意事项? - 知乎"
+      ],
+      "pros": [
+        "我接触的精装房全屋定制,哪些隐藏增项真要避坑啊? - 知乎",
+        "全屋定制不翻车✅安装标准,才是硬道理 - 知乎"
+      ],
+      "cons": [
+        "全屋定制想不花冤枉钱不踩坑,先把这5个错误认知从脑子里拿掉! - 知乎",
+        "国内靠谱的全屋定制生产商 - 知乎"
+      ],
+      "pitfalls": [
+        "全屋定制怎么避坑？",
+        "全屋定制的计价方式，是业主踩坑的第一道门槛。",
+        "关键提醒：E0是“能不能卖”的准入门槛，ENF是“分到哪一档”的最高分级，两者性质不同。"
+      ],
+      "counts": {
+        "consensus": 18,
+        "disputed": 2,
+        "pitfalls": 4,
+        "hidden": 11
       },
-      {
-        text: '基站才是占地大头。买之前先量柜子底部的净高，很多机器人的基站加上水箱之后超过 40cm，塞不进常规的浴室柜下方。',
-        votes: '9 篇提到了尺寸问题',
-        sources: [
-          { author: '装修踩坑实录', title: '我家扫地机器人最后放在了阳台上', year: 2025 }
-        ]
-      }
-    ],
-    disputed: [
-      {
-        text: '「追觅吸力更大所以更干净」——这个说法只在特定条件下成立。吸力提升对硬地板几乎没有增益，对地毯才明显；但吸力越大噪音越大，夜间使用会扰民。',
-        votes: '支持 6 篇 / 反对 11 篇',
-        sources: [
-          { author: '家电实验室', title: '吸力参数与实际清洁度的关系', year: 2024 },
-          { author: '不买贵的只买对的', title: '我把两台的吸力都拉到最大测了一周', year: 2025 }
-        ]
+      "basis_titles": [
+        "全屋定制最容易踩的5个坑是什么?我替你踩了一遍 - 知乎",
+        "全屋定制,尺寸翻车率最高的5个地方,你踩坑了吗? - 知乎",
+        "全屋定制想不花冤枉钱不踩坑,先把这5个错误认知从脑子里拿掉! - 知乎"
+      ],
+      "summary_source": "model"
+    }
+  ],
+  "trace": [
+    {
+      "stage": "query_rewrite",
+      "label": "改写查询",
+      "subqueries": [
+        "全屋定制怎么避免被坑",
+        "全屋定制 增项 报价 有哪些坑",
+        "全屋定制 板材 环保 怎么选",
+        "全屋定制 安装 尺寸 翻车"
+      ],
+      "detail": "拆成 4 个问题分别去找"
+    },
+    {
+      "stage": "recall",
+      "label": "多路召回",
+      "total": 40,
+      "per_query": [
+        {
+          "query": "全屋定制怎么避免被坑",
+          "count": 10,
+          "ok": true
+        },
+        {
+          "query": "全屋定制 增项 报价 有哪些坑",
+          "count": 10,
+          "ok": true
+        },
+        {
+          "query": "全屋定制 板材 环保 怎么选",
+          "count": 10,
+          "ok": true
+        },
+        {
+          "query": "全屋定制 安装 尺寸 翻车",
+          "count": 10,
+          "ok": true
+        }
+      ],
+      "detail": "从 4 个问题里拿到 40 条"
+    },
+    {
+      "stage": "dedupe",
+      "label": "去掉重复",
+      "before": 40,
+      "after": 35,
+      "detail": "有 5 条在不同问题里重复出现"
+    },
+    {
+      "stage": "credibility",
+      "label": "看看有没有在卖东西的",
+      "total": 35,
+      "ad_suspect": 11,
+      "detail": "11 条像是在推广，标记后收起，不删除"
+    },
+    {
+      "stage": "grouping",
+      "label": "把不同说法归到一起",
+      "counts": {
+        "consensus": 18,
+        "disputed": 2,
+        "pitfalls": 4,
+        "hidden": 11
       },
-      {
-        text: '「一定要买带自动集尘的」——自动集尘确实省事，但尘袋是持续支出，一年下来接近两百元。有人算过账：手动倒尘盒每次 30 秒，一年大约 3 小时，看你愿不愿意用 200 块换 3 小时。',
-        votes: '支持 8 篇 / 反对 5 篇',
-        sources: [
-          { author: '算账的人', title: '扫地机器人的隐性成本清单', year: 2025 }
-        ]
-      },
-      {
-        text: '「上下水版本一步到位」——前提是你家阳台或卫生间有预留的进排水口。老房子改造要额外花 500–1500 元，且需要破墙或走明管，很多人买了之后才发现装不了。',
-        votes: '支持 4 篇 / 反对 7 篇',
-        sources: [
-          { author: '老房改造日记', title: '上下水改装比机器本身还贵', year: 2024 }
-        ]
-      }
-    ],
-    pitfalls: [
-      {
-        text: '地毯长毛的户型，机器人会卡在地毯边缘反复尝试，最后电量耗光停在客厅中间。买之前确认有没有「地毯识别」这个功能，以及它是否真的能识别长毛地毯。',
-        sources: [
-          { author: '两只猫的家', title: '扫地机器人被地毯困住的第 37 次', year: 2025 }
-        ]
-      },
-      {
-        text: '长发和宠物毛会缠在主刷两端，一周不清理就会明显降低吸力。胶刷比毛刷好清理，但这个价位的机型不一定给胶刷，要单独确认。',
-        sources: [
-          { author: '陈默', title: '用了三年扫地机，说点参数表不会写的', year: 2025 }
-        ]
-      },
-      {
-        text: 'App 断连之后需要重新配网，部分老固件版本会丢失已建的地图。买回来第一件事应该是升级固件，而不是直接开始清扫。',
-        sources: [
-          { author: '拿铁不加糖', title: '石头 G 系列和追觅 S 系列的长期对比', year: 2024 }
-        ]
-      }
-    ],
-    hidden: [
-      {
-        reason: '只推荐单一品牌，文末有购买链接',
-        text: '「这台是我今年最满意的家电，从外观到清洁力都无可挑剔，家里有它之后我再也没拖过地。链接放在评论区，领券还能再减 300。」',
-        detail: '全文 1800 字没有一句提到缺点，也没有任何实测数据；同一账号在三个月内用相似文案推荐了 11 款不同品牌的产品。',
-        sources: [{ author: '居家好物分享', title: '2025 年最值得买的扫地机器人', year: 2025 }]
-      },
-      {
-        reason: '内容停留在两年前，机型已换代',
-        text: '「目前两千元档首选是上一代旗舰降价款，配置比新款更划算，我当时买的就是这个思路。」',
-        detail: '发布于 2023 年 11 月。文中所指的机型已经停产，当前在售的是两个世代之后的产品，价格区间也变了。',
-        sources: [{ author: '数码老玩家', title: '两千元档扫地机器人选购思路', year: 2023 }]
-      },
-      {
-        reason: '参数罗列，没有实际使用记录',
-        text: '「吸力 8000Pa，电池 6400mAh，支持激光导航与 AI 避障，综合参数在同价位排名第一。」',
-        detail: '全文由产品页面参数拼接而成，没有实拍图、没有使用场景，也没有作者本人的购买记录。',
-        sources: [{ author: '参数对比君', title: '同价位扫地机器人参数横评', year: 2025 }]
-      }
-    ],
-    // 技术细节（默认收起，评委视角）
-    trace: [
-      { label: '改写查询', detail: '拆成 3 个子查询：价位段筛选 / 两家机型对比 / 长期使用反馈' },
-      { label: '召回', detail: '命中 24 条相关内容' },
-      { label: '时效过滤', detail: '剔除 2 年前发布、机型已停产的 7 条，剩 17 条' },
-      { label: '可信度质检', detail: '识别出 3 条疑似营销内容，降权但不删除' },
-      { label: '观点归并', detail: '归纳出 2 条共识、3 处分歧、3 个具体问题' }
-    ],
-    stats: { recalled: 24, afterTime: 17, afterQuality: 14, hidden: 3 }
+      "detail": "一致的 18 条，对立的 2 条，具体的坑 4 条"
+    },
+    {
+      "stage": "summarize",
+      "label": "把结论写出来",
+      "detail": "依据 3 条材料归纳，置信度 medium"
+    }
+  ],
+  "stats": {
+    "recalled": 40,
+    "unique": 35,
+    "after_freshness": 35,
+    "hidden": 11,
+    "kept": 24
   },
-
-  /* ---------- 场景二：经验避坑（空结果演示） ---------- */
-  renovation: {
-    id: 'renovation',
-    query: '全屋定制怎么避免被坑',
-    intentWord: '经验避坑',
-    headline: '',
-    subline: '',
-    empty: true,
-    emptyTitle: '这次没找到够可信的内容',
-    emptyReason: '「全屋定制」这个领域的商业内容密度太高：找到的 11 条里，6 条是商家自己在讲，剩下 5 条太旧或者跑题。与其给你拼一份看着完整的答案，不如说实话。',
-    emptyActions: [
-      { label: '放宽时间范围到 3 年', hint: '会多出 4 条，但都是 2023 年前的报价，参考价值有限' },
-      { label: '看看被我们收起的 6 条', hint: '它们确实在讲这件事，只是每一条的最终目的都是让你联系他' }
-    ],
-    hidden: [
-      {
-        reason: '正文即广告，通篇是套餐报价',
-        text: '「我们家的全屋定制套餐 12800 起，含衣柜、书柜、榻榻米，板材可选 E0 级，详情可以私信。」',
-        detail: '全文 900 字没有一句用户视角的经验，账号主体是定制家具商家。',
-        sources: [{ author: '某定制家居', title: '全屋定制避坑指南', year: 2025 }]
-      },
-      {
-        reason: '正文即广告，末尾留了门店地址',
-        text: '「避坑的核心是选对厂家，我们做了 12 年，工艺和板材都可以来店里看，地址在文末。」',
-        detail: '账号简介为门店地址与联系电话，历史内容全部是自家产品图。',
-        sources: [{ author: '老木匠定制', title: '定制家具怎么选，内行人说三句', year: 2025 }]
-      },
-      {
-        reason: '借「避坑」引流到私信',
-        text: '「我整理了 37 条定制避坑清单，需要的评论区扣 1，我私信发你。」',
-        detail: '正文未给出任何实质内容，全部价值都在引导私信。',
-        sources: [{ author: '装修小助手', title: '定制家具的 37 个坑', year: 2025 }]
-      },
-      {
-        reason: '同行互踩，只贬对手不谈问题',
-        text: '「别再去某几家了，工艺差、板材甲醛超标，找我们就不会踩这些坑。」',
-        detail: '通篇在贬低其他品牌，未提供任何可核实的工艺或检测信息。',
-        sources: [{ author: '定制老张', title: '说说行业里的那些套路', year: 2025 }]
-      },
-      {
-        reason: '内容停留在三年前，报价已失效',
-        text: '「现在市面上的行情大概是每平米 800–1200，超过这个价就是被坑了。」',
-        detail: '发布于 2022 年。板材价格与人工成本已明显变化，这个区间会误导判断。',
-        sources: [{ author: '装修记事本', title: '定制家具的价格构成', year: 2022 }]
-      },
-      {
-        reason: '参数罗列，没有实际经历',
-        text: '「板材要选 E0 级、五金要选百隆、封边要选激光封边，记住这三点就不会被坑。」',
-        detail: '三条结论本身没错，但属于行业通识，未涉及任何真实交易场景和增项陷阱。',
-        sources: [{ author: '材料科普君', title: '定制家具的材料选择', year: 2024 }]
-      }
-    ],
-    trace: [
-      { label: '改写查询', detail: '拆成 3 个子查询：计价方式 / 板材环保 / 安装增项' },
-      { label: '召回', detail: '命中 11 条相关内容' },
-      { label: '时效过滤', detail: '保留近 3 年内容，剔除 2 条' },
-      { label: '可信度质检', detail: '6 条判定为商家自述或引流内容，降权保留' },
-      { label: '终止', detail: '剩余独立经验不足 3 条，返回兜底提示' }
-    ],
-    stats: { recalled: 11, afterTime: 9, afterQuality: 0, hidden: 6 }
-  }
+  "from_cache": false,
+  "elapsed_ms": 0
 };
-
-/* 首页示例话题 */
-const TOPICS = [
-  { key: 'vacuum', label: '两千块扫地机器人怎么选', hint: '对比选购' },
-  { key: 'renovation', label: '全屋定制怎么避免被坑', hint: '经验避坑 · 空结果演示' }
-];
 
 </script>
 <script>
-/* ---------------- 基础 ---------------- */
-const $ = id => document.getElementById(id);
+/* ===========================================================
+   知鉴 Search · 前端逻辑
+   ===========================================================
+   数据来源（双模）：
+     1) 优先请求后端 POST /api/search
+     2) 8 秒内没响应 / 报错 / 返回 degraded，自动改用本地 seed.js
+   界面会如实标明当前是哪一种，不假装。
+
+   字段来源见 backend/pipeline.py 的 payload：
+     query / intent / intent_label / mode / degraded_reason
+     answers[]  { id,title,content_text,url,author_signature,
+                  vote_up_count,published_year,age_days,
+                  is_ad_suspect,reasons[],group }
+     cards[0]   { core_conclusion,conclusion_confidence,key_points,
+                  basis_titles,summary_source,counts }
+     trace[]    { stage,label,detail }   ← 阶段是动态的，别按下标取
+   =========================================================== */
+
+const API_BASE = (localStorage.getItem('ZHIJIAN_API') || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+const TIMEOUT_MS = 8000;
+
 let CURRENT = null;
 let TECH_ON = false;
 
-/* 首页话题 chips */
-(function initTopics(){
-  $('topics').innerHTML = TOPICS.map(t =>
-    `<button class="topic" onclick="pick('${t.key}')">${t.label}<i>${t.hint}</i></button>`
+const $ = (id) => document.getElementById(id);
+
+/* ---------------- 首页话题 ---------------- */
+const TOPICS = [
+  { q: '全屋定制怎么避免被坑', hint: '经验避坑' },
+  { q: '扫地机器人值得买吗', hint: '争议话题' },
+  { q: '2000元扫地机器人 石头和追觅哪个好', hint: '对比选购' }
+];
+
+(function initTopics() {
+  $('topics').innerHTML = TOPICS.map(
+    (t) => `<button class="topic" onclick="pickTopic('${t.q}')">${t.q}<i>${t.hint}</i></button>`
   ).join('');
 })();
 
-function pick(key){
-  $('q').value = DATASETS[key].query;
-  startSearch(key);
+function pickTopic(q) {
+  $('q').value = q;
+  doSearch(q);
 }
-$('q').addEventListener('keydown', e => { if(e.key === 'Enter') startSearch(); });
+
+$('q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doSearch($('q').value);
+});
 
 /* ---------------- 视图切换 ---------------- */
-function show(which){
-  ['home','loading','result','empty'].forEach(v => {
-    $(v).style.display = (v === which) ? (v === 'home' ? 'flex' : 'block') : 'none';
+function show(which) {
+  ['home', 'loading', 'result', 'empty'].forEach((v) => {
+    $(v).style.display =
+      v === which ? (v === 'home' ? 'flex' : 'block') : 'none';
   });
   $('topbar').classList.toggle('on', which !== 'home');
-  window.scrollTo({top:0, behavior:'instant'});
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
-function goHome(){
+
+function goHome() {
   CURRENT = null;
   $('q').value = '';
-  if(TECH_ON){
-    TECH_ON = false;
-    $('tech').classList.remove('on');
-    $('dtoggle').classList.remove('on');
-    $('dtoggle').textContent = '显示技术细节';
-  }
+  if (TECH_ON) toggleTech();
   show('home');
-  setTimeout(()=>$('q').focus(), 80);
+  setTimeout(() => $('q').focus(), 80);
 }
 
-/* ---------------- 搜索 ---------------- */
-const STEPS = [
+/* ---------------- 加载态 ---------------- */
+const LOAD_STEPS = [
   '正在读你这个问题…',
-  '找到 24 篇相关内容…',
-  '排掉 2 年前的旧机型…',
+  '拆成几个更具体的问题分别去找…',
+  '排掉太旧的内容…',
   '看看有没有在卖东西的…',
-  '把不同说法归到一起…'
+  '把不同说法归到一起…',
+  '写结论…'
 ];
 
-function startSearch(forceKey){
-  const q = ($('q').value || '').trim();
-  let data = forceKey ? DATASETS[forceKey] : matchDataset(q);
-  if(!data){
-    data = DATASETS.vacuum;
-  }
-  CURRENT = data;
-  $('miniq-text').textContent = data.query;
-
-  show('loading');
-  $('lsteps').innerHTML = STEPS.map((s,i) =>
-    `<b id="st${i}">${s}</b>`).join('');
-
-  const seq = [0,1,2,3,4];
-  seq.forEach((n,i) => {
-    setTimeout(()=>{
-      for(let k=0;k<=i;k++){ const el=$('st'+k); if(el){ el.className = k===i ? 'now' : 'done'; } }
-      if(i === seq.length-1){
-        setTimeout(()=>render(data), 620);
+function runSteps() {
+  $('lsteps').innerHTML = LOAD_STEPS.map((s, i) => `<b id="st${i}">${s}</b>`).join('');
+  LOAD_STEPS.forEach((_, i) => {
+    setTimeout(() => {
+      for (let k = 0; k <= i; k++) {
+        const el = $('st' + k);
+        if (el) el.className = k === i ? 'now' : 'done';
       }
-    }, i * 340);
+    }, i * 620);
   });
 }
 
-function matchDataset(q){
-  if(!q) return DATASETS.vacuum;
-  if(/定制|装修|全屋/.test(q)) return DATASETS.renovation;
-  return DATASETS.vacuum;
+/* ---------------- 检索 ---------------- */
+async function doSearch(rawQuery) {
+  const query = (rawQuery || '').trim();
+  if (!query) {
+    $('q').focus();
+    return;
+  }
+  $('miniq-text').textContent = query;
+  show('loading');
+  runSteps();
+
+  const started = Date.now();
+  try {
+    const res = await fetch(`${API_BASE}/api/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, options: {} }),
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.answers)) throw new Error('返回结构不对');
+
+    // 后端自己说降级了，就按降级展示
+    if (data.mode === 'degraded') {
+      render(data, data.degraded_reason || '后端暂时没给出结果');
+      return;
+    }
+    render(data);
+  } catch (err) {
+    // 连不上就退回本地 seed，并如实说明
+    const wait = Math.max(0, 900 - (Date.now() - started));
+    setTimeout(() => {
+      const fallback = JSON.parse(JSON.stringify(SEED));
+      render(fallback, '没连上检索服务，这是提前存好的一份结果');
+    }, wait);
+  }
 }
 
 /* ---------------- 渲染 ---------------- */
-function hiddenHTML(hid){
-  return `<div class="fold-note">没有删掉它们。你自己看一眼，判断权在你手上。</div>` +
-    hid.map(h => `
-      <div class="hid">
-        <div class="why">为什么收起：${h.reason}</div>
-        <div class="txt">${h.text}</div>
-        <div class="detail">${h.detail}</div>
-        <div class="src">
-          ${h.sources.map(s => `<span class="who">知乎 · ${s.author}</span><span class="yr">${s.year}</span>`).join('')}
-        </div>
-        <button class="override" onclick="override(this)">我认为这条没问题</button>
-      </div>`).join('');
+function groupOf(d, name) {
+  return (d.answers || []).filter((a) => a.group === name);
 }
 
-function render(d){
-  if(d.empty){ renderEmpty(d); return; }
+function clip(text, limit) {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= limit) return { text: t, truncated: false };
+  return { text: t.slice(0, limit), truncated: true };
+}
+
+function sourceLine(a) {
+  const parts = [];
+  parts.push(`<span class="who">知乎 · ${escapeHtml(a.author_signature || '匿名')}</span>`);
+  if (a.published_year) parts.push(`<span class="yr">${a.published_year}</span>`);
+  if (a.vote_up_count) parts.push(`<span class="votes">${a.vote_up_count} 赞</span>`);
+  return parts.join('');
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
+function render(data, degradedReason) {
+  CURRENT = data;
   show('result');
-  $('dtoggle').style.visibility = 'visible';
 
-  $('rq').textContent = d.query;
-  $('rmeta').textContent = d.intentWord + '类问题';
-  $('rcount').textContent = '读了 ' + d.stats.recalled + ' 篇，留下 ' + (d.stats.afterQuality) + ' 篇';
+  const card = (data.cards || [])[0] || {};
+  const isDegraded = data.mode === 'degraded' || !!degradedReason;
 
-  $('rkicker').textContent = '先说结论';
-  $('rsub').style.cssText = '';
-  $('rhead').textContent = d.headline;
-  $('rsub').textContent = d.subline;
-  $('rquick').innerHTML = d.quickAnswer.map(t => `<li>${t}</li>`).join('');
+  /* --- 顶栏模式标记：必须诚实 --- */
+  const status = document.querySelector('.status');
+  status.innerHTML = isDegraded
+    ? '<i class="dot" style="background:#C9A227"></i>演示数据 · 未连接后端'
+    : '<i class="dot"></i>真实检索 · 本地服务';
+  if (degradedReason) status.title = degradedReason;
 
-  /* 三段 */
+  /* --- 头部 --- */
+  $('rq').textContent = data.query || '';
+  $('rmeta').textContent = data.intent_label || '综合探索';
+  const st = data.stats || {};
+  $('rcount').textContent =
+    st.recalled != null
+      ? `读了 ${st.recalled} 篇，留下 ${(st.after_freshness || 0) - (st.hidden || 0)} 篇`
+      : '';
+
+  /* --- 结论 --- */
+  const confidence = card.conclusion_confidence || 'none';
+  // 三档：medium 正常给结论；low 只能说到这；none 干脆没有结论
+  const weak = confidence === 'low' || confidence === 'none';
+  const noConclusion = confidence === 'none';
+  $('rkicker').textContent =
+    confidence === 'none' ? '说实话' : confidence === 'low' ? '只能说到这' : '先说结论';
+  $('rhead').textContent = card.core_conclusion || '这次没有找到能形成结论的内容。';
+  $('rhead').style.fontSize = weak ? '20px' : '';
+  $('rhead').style.color = weak ? 'var(--ink-2)' : '';
+
+  const points = (card.key_points || []).filter(Boolean);
+  const basisCount = (card.basis_titles || []).length;
+  $('rsub').textContent = noConclusion
+    ? '下面这几条是别人提到最多的，你自己判断。'
+    : confidence === 'low'
+    ? `材料只够说到这个程度，这条结论的把握不大。`
+    : basisCount
+    ? `这句是从 ${basisCount} 条回答里归纳出来的。`
+    : '';
+  $('rsub').style.display = '';
+  $('rquick').innerHTML = points.map((p) => `<li>${escapeHtml(p)}</li>`).join('');
+
+  /* --- 三段 --- */
   const blocks = [
-    { key:'consensus', title:'大家都这么说', tag:'多篇独立来源一致', cls:'' },
-    { key:'disputed',  title:'说法不一的地方', tag:'同一个问题，结论相反', cls:'' },
-    { key:'pitfalls',  title:'有人具体踩过的坑', tag:'带场景，能对上自己家', cls:'pit' }
+    { key: 'consensus', title: '大家都这么说', tag: '多篇内容一致', cls: '' },
+    { key: 'disputed', title: '说法不一的地方', tag: '同一个问题，结论相反', cls: '' },
+    { key: 'pitfalls', title: '有人具体踩过的坑', tag: '带场景，能对上自己家', cls: 'pit' }
   ];
-  $('blocks').innerHTML = blocks.map(b => {
-    const arr = d[b.key] || [];
-    if(!arr.length) return '';
-    const items = arr.map((it,i) => `
-      <div class="item ${b.cls}">
-        <div class="idx">${String(i+1).padStart(2,'0')}</div>
-        <div class="body">
-          <p>${it.text}</p>
-          <div class="src">
-            ${it.votes ? `<span class="votes">${it.votes}</span>` : ''}
-            ${it.sources.map(s =>
-              `<span class="who">知乎 · ${s.author}</span><span class="yr">${s.year}</span>`
-            ).join('<span class="sect">/</span>')}
-          </div>
-        </div>
-      </div>`).join('');
-    return `
-      <div class="block">
-        <div class="block-head"><h3>${b.title}</h3><span class="tag">${b.tag}</span></div>
-        ${items}
-      </div>`;
-  }).join('');
 
-  /* 收起区 */
-  const hid = d.hidden || [];
-  $('foldn').textContent = hid.length + ' 条';
-  $('foldt').textContent = '另有 ' + hid.length + ' 条内容，我们觉得你不该直接信';
-  $('foldbody').innerHTML = hiddenHTML(hid);
+  $('blocks').innerHTML = blocks
+    .map((b) => {
+      const arr = groupOf(data, b.key);
+      if (!arr.length) return '';
+      const items = arr
+        .map((a, i) => {
+          const c = clip(a.content_text, 190);
+          return `
+          <div class="item ${b.cls}">
+            <div class="idx">${String(i + 1).padStart(2, '0')}</div>
+            <div class="body">
+              <p class="q-title">${escapeHtml(a.title || '')}</p>
+              <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
+              ${c.truncated ? `<button class="more" onclick="expand(this, ${i})" data-full="${escapeHtml(a.content_text)}">展开全文</button>` : ''}
+              <div class="src">${sourceLine(a)}</div>
+            </div>
+          </div>`;
+        })
+        .join('');
+      return `
+        <div class="block">
+          <div class="block-head"><h3>${b.title}</h3><span class="tag">${b.tag} · ${arr.length} 条</span></div>
+          ${items}
+        </div>`;
+    })
+    .join('');
 
-  /* 技术细节 */
+  /* --- 收起区 --- */
+  const hidden = groupOf(data, 'hidden');
+  if (hidden.length) {
+    $('fold').style.display = '';
+    $('foldn').textContent = hidden.length + ' 条';
+    $('foldt').textContent = `另有 ${hidden.length} 条内容，我们觉得你不该直接信`;
+    $('foldbody').innerHTML =
+      `<div class="fold-note">没有删掉它们。你自己看一眼，判断权在你手上。</div>` +
+      hidden
+        .map((h) => {
+          const c = clip(h.content_text, 240);
+          return `
+          <div class="hid">
+            <div class="why">为什么收起：${escapeHtml((h.reasons || []).join('；') || '内容可疑')}</div>
+            <div class="txt"><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</div>
+            <div class="src">${sourceLine(h)}</div>
+            <button class="override" onclick="override(this)">我认为这条没问题</button>
+          </div>`;
+        })
+        .join('');
+  } else {
+    $('fold').style.display = 'none';
+  }
+
+  /* --- 技术抽屉：按 label 渲染，不假设阶段数 --- */
   $('tech').innerHTML =
     `<h4>技术细节 · 供评委查看，普通用户默认看不到</h4>
      <div class="trace">
-       ${d.trace.map(t => `<div class="tr"><span class="lb">${t.label}</span><span class="dt">${t.detail}</span></div>`).join('')}
+       ${(data.trace || [])
+         .map(
+           (t) =>
+             `<div class="tr"><span class="lb">${escapeHtml(t.label || t.stage)}</span><span class="dt">${escapeHtml(t.detail || '')}</span></div>`
+         )
+         .join('')}
      </div>
      <div class="tstats">
-       <div class="tstat"><div class="v">${d.stats.recalled}</div><div class="k">初始召回</div></div>
-       <div class="tstat"><div class="v">${d.stats.afterTime}</div><div class="k">时效过滤后</div></div>
-       <div class="tstat"><div class="v">${d.stats.afterQuality}</div><div class="k">可信内容</div></div>
-       <div class="tstat"><div class="v">${d.stats.hidden}</div><div class="k">降权保留</div></div>
-     </div>`;
+       <div class="tstat"><div class="v">${st.recalled || 0}</div><div class="k">初始召回</div></div>
+       <div class="tstat"><div class="v">${st.after_freshness || 0}</div><div class="k">时效过滤后</div></div>
+       <div class="tstat"><div class="v">${st.hidden || 0}</div><div class="k">降权保留</div></div>
+       <div class="tstat"><div class="v">${st.kept || 0}</div><div class="k">可用内容</div></div>
+     </div>
+     ${degradedReason ? `<div class="fold-note" style="margin-top:12px">降级原因：${escapeHtml(degradedReason)}</div>` : ''}`;
+  $('tech').classList.toggle('on', TECH_ON);
 
   $('fold').classList.remove('open');
-  $('tech').classList.toggle('on', TECH_ON);
 }
 
-function renderEmpty(d){
-  show('empty');
-  $('dtoggle').style.visibility = 'hidden';
-  $('miniq-text').textContent = d.query;
-  $('etitle').textContent = d.emptyTitle;
-  $('ereason').textContent = d.emptyReason;
-  $('eopts').innerHTML = d.emptyActions.map((a,i) =>
-    `<div class="opt" onclick="emptyAction(${i})">
-       <div><div class="lab">${a.label}</div><div class="hint">${a.hint}</div></div>
-       <span class="go2">试试 →</span>
-     </div>`).join('');
-}
-
-function emptyAction(i){
-  const d = DATASETS.renovation;
-  if(i === 1){
-    /* 把被收起的 6 条摊开给用户自己判断 */
-    show('result');
-    $('rq').textContent = d.query;
-    $('rmeta').textContent = '被收起的内容';
-    $('rcount').textContent = '共 ' + d.hidden.length + ' 条';
-    $('rkicker').textContent = '你自己判断';
-    $('rsub').style.cssText = 'padding-bottom:0;border-bottom:none;margin-bottom:0;';
-    $('rhead').textContent = '被我们收起的 ' + d.hidden.length + ' 条，长这样';
-    $('rsub').textContent = '它们确实在讲「全屋定制」，但每一条的最终目的都是让你联系他。你看一眼，判断权在你手上。';
-    $('rquick').innerHTML = '';
-    $('blocks').innerHTML = '';
-    $('foldn').textContent = d.hidden.length + ' 条';
-    $('foldt').textContent = '全部被收起的内容';
-    $('foldbody').innerHTML = hiddenHTML(d.hidden);
-    $('tech').innerHTML =
-      `<h4>技术细节 · 供评委查看，普通用户默认看不到</h4>
-       <div class="trace">
-         ${d.trace.map(t => `<div class="tr"><span class="lb">${t.label}</span><span class="dt">${t.detail}</span></div>`).join('')}
-       </div>
-       <div class="tstats">
-         <div class="tstat"><div class="v">${d.stats.recalled}</div><div class="k">初始召回</div></div>
-         <div class="tstat"><div class="v">${d.stats.afterTime}</div><div class="k">时效过滤后</div></div>
-         <div class="tstat"><div class="v">${d.stats.hidden}</div><div class="k">降权保留</div></div>
-         <div class="tstat"><div class="v">0</div><div class="k">独立经验</div></div>
-       </div>`;
-    $('tech').classList.toggle('on', TECH_ON);
-    $('fold').classList.add('open');
-  } else {
-    alert('下一版做：放宽时间窗后重新检索');
-  }
+function expand(btn, idx) {
+  const full = btn.getAttribute('data-full') || '';
+  const p = btn.previousElementSibling;
+  p.textContent = full;
+  btn.remove();
 }
 
 /* ---------------- 交互 ---------------- */
-function toggleFold(){ $('fold').classList.toggle('open'); }
+function toggleFold() {
+  $('fold').classList.toggle('open');
+}
 
-function toggleTech(){
+function toggleTech() {
   TECH_ON = !TECH_ON;
   $('tech').classList.toggle('on', TECH_ON);
   $('dtoggle').classList.toggle('on', TECH_ON);
   $('dtoggle').textContent = TECH_ON ? '已显示技术细节' : '显示技术细节';
-  if(TECH_ON && CURRENT) $('tech').scrollIntoView({behavior:'smooth', block:'center'});
+  if (TECH_ON && CURRENT) $('tech').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function override(btn){
-  if(btn.classList.contains('did')){
+function override(btn) {
+  if (btn.classList.contains('did')) {
     btn.classList.remove('did');
     btn.textContent = '我认为这条没问题';
   } else {
@@ -946,6 +1220,7 @@ function override(btn){
     btn.textContent = '已记录你的判断 · 下次不再收起';
   }
 }
+
 </script>
 </body>
 </html>

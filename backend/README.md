@@ -131,3 +131,47 @@ bash <skill-dir>/scripts/setup.sh   # 自动下载 linux-amd64 版本
 先读 `pipeline.py` 的 `run()`，那是主流程，从上到下一目了然。
 想改判断逻辑就改 `rules.json`，不要改 `filters.py`。
 想改归并质量就改 `merge.py`，顶部注释写了五个待优化点。
+
+---
+
+## A 系列任务进展（引擎）
+
+### A4 归并质量优化（merge.py，已做）
+把基线的「关键词兜底分桶」升级为按内容判据分桶，对应顶部 5 条优化点：
+- consensus 不再是兜底桶：build_cards 里用信号聚类复核「多条说法一致」，孤条降级为 neutral，不虚占共识。
+- disputed 不再只看「但是/不过」：先做立场分类（正/负/条件），同一问题下有相反立场才判分歧。
+- pitfalls 要求「有具体场景」：坑信号 ≥3 且场景词（户型/潮湿区/地暖/净深/身高…）≥3 才算具体的坑，优先于共识。
+- core_conclusion 保持降级链：模型优先（pipeline 调 llm.summarize），失败退回规则抽取，不用模板句糊弄。
+- 同题多答先聚合再找分歧。
+- 接口不变：`group(items, query)` 返回 `(items, cards)`；新增就地字段 `stance`、`scene_hits`。
+- 实测（全屋定制样本 35 条）：基线 consensus 18 条里一半是坑，优化后按「具体的坑 / 立场分歧 / 中立」如实归类，不再把坑塞进共识。
+
+### A6 评测命令（backend/evaluate.py，已做）
+`filters.evaluate()` 已有核心逻辑，补了命令行入口：
+```bash
+cd backend
+python evaluate.py --labels ../data/labels.csv
+python evaluate.py --labels ../data/labels.csv --json
+python evaluate.py --labels ../data/labels.csv --rules rules.json
+```
+读 `labels.csv`（列 `id,label`，label ∈ 可信/软文/过时/跑题），用当前 rules.json 重跑判定后评测，
+输出召回率/误杀率/混淆矩阵/漏判案例/误杀案例。真跑真算、可复现，换 rules.json 即可看到变化。
+当前样本+rules v1.3 实测：召回率 71.4%、误杀率 4.8%（漏判 4、误杀 1，均已列出，供 C 调权重）。
+
+### A2 部署前验证（结论）
+后端走本机知乎 CLI + keychain。无头服务器上 CLI 不可用时，`zhihu.search` 抛 `ZhihuError`，
+pipeline 捕获后整条链降级为 `mode=degraded`，不崩。上线前须用
+`ZHIHU_CLI_PATH` + `ZHIHU_ACCESS_SECRET`（去 developer.zhihu.com 生成）打通，或改 HTTP 直连。
+
+### A3 部署（scripts/ 与 deploy/，已备脚本）
+- `scripts/run_prod.sh`：uvicorn 多 worker 启动，密钥走环境变量。
+- `deploy/zhijian.service`：systemd 守护，崩溃自动重启；`deploy/zhijian.env.example` 为密钥模板（chmod 600，不进 git）。
+- `deploy/nginx.conf`：反代 + HTTPS（certbot 签证书）。
+- 若用内网穿透：承载穿透的电脑在评委访问期间不能关机，须提前告知全队。
+- 部署后立刻用手机流量（关 WiFi）实测。
+
+### A5 稳定性（已验证）
+空/超长/特殊字符/emoji/SQL 样输入全部 HTTP 200（无 CLI 时为 degraded），连续 20 次不崩，日志不打印密钥内容。
+
+### A7 预热（scripts/warmup.py，已做）
+`python scripts/warmup.py [--base https://线上地址]` 把三个演示场景各跑一遍，预热缓存并当健康冒烟。

@@ -6,9 +6,13 @@
 
 ```bash
 cd backend
-pip install fastapi uvicorn   # 已装可跳过
-uvicorn main:app --reload --port 8000
+pip install -r requirements.txt
+cp .env.example .env      # 填入 ZHIHU_ACCESS_SECRET 与 DEEPSEEK_API_KEY
+./run.sh                  # Windows 用 .\run.ps1
 ```
+
+`run.sh` 会先把 `.env` 里的配置导进环境变量，再启动 uvicorn。
+本地和服务器用同一个入口，避免「我这里能跑」的问题。
 
 打开 <http://127.0.0.1:8000/docs> 可以直接在浏览器里试接口。
 
@@ -28,8 +32,15 @@ uvicorn main:app --reload --port 8000
 export ZHIHU_CLI_PATH=/path/to/zhihu-cli
 ```
 
-**注意**：目前凭据存在本机 keychain。部署到云服务器前必须先解决这个
-（见「部署前必须验证」一节），否则线上会调不通。
+**凭据方式已验证（11-23）**：用 `ZHIHU_ACCESS_SECRET` 环境变量调 CLI
+能正常返回结果，且环境变量优先于 keychain（`environment_shadows_keychain=true`）。
+所以服务器上不需要 keychain。
+
+服务器上还需要做一件事：装 Linux 版 CLI 二进制。
+
+```bash
+bash <skill-dir>/scripts/setup.sh   # 自动下载 linux-amd64 版本
+```
 
 ## 目录
 

@@ -74,26 +74,37 @@ A1 · 读懂核心逻辑（D1，和 A0 一起）
   不要急着改。先跑通、看懂，再动手。
 
 ------------------------------------------------------------
-A2 · 验证知乎 CLI 能否在服务器上工作（D2）★ 最关键的未知数
+A2 · 让服务在无 keychain 环境下跑起来（D2）★ 已部分验证，剩一步
 ------------------------------------------------------------
+【进展：凭据方式已验证通过（11-23 21:15）】
+  用 ZHIHU_ACCESS_SECRET 环境变量调 CLI，返回 Code:0 success。
+  auth status 显示 source=environment、environment_shadows_keychain=true，
+  说明环境变量优先于 keychain。服务器上没有 keychain 也能用。
+
 做什么：
-  现在的凭据存在本机 keychain 里。服务器上没有。
-  先确认能不能用：
-    · 设环境变量 ZHIHU_ACCESS_SECRET 再调 CLI，看是否成功
-    · 不行就改成直接调知乎开放平台 HTTP 接口
-      （参考 skill 目录 references/http-api.md）
+  剩下没验证的只有一件事：Linux 版 CLI 二进制能不能装上。
+  本机是 Windows 的 zhihu-cli.exe，服务器是 Linux，不能直接拷。
+
+  在服务器上执行：
+    bash <skill-dir>/scripts/setup.sh
+  它会按平台（linux-amd64）下载对应版本，不需要管理员权限。
+
+  装完验证：
+    ZHIHU_ACCESS_SECRET=<见 .env> zhihu-cli auth status
+    ZHIHU_ACCESS_SECRET=<见 .env> zhihu-cli search zhihu --query "测试" --count 1
 
 产出：
-  一句话结论：能在服务器跑 / 不能，要用 HTTP 直连
+  服务器上能返回一条真实搜索结果
 
 算完成：
-  在服务器（或模拟无 keychain 环境）上成功返回一条真实搜索结果
+  在上面那条命令里看到 Code:0
 
 注意：
-  · 这一项不通，A3 部署就别做，先换方案
-  · 不要等到 D3 才发现，D2 必须给答案
-  · 如果需要新的 Secret，让对方去
-    https://developer.zhihu.com/profile 生成
+  · 凭据不要写进代码、不要进仓库，只放服务器环境变量
+  · 用 backend/run.sh 启动，它会自动从 .env 读环境变量
+  · 如果 Linux 二进制装不上，退路是直连知乎 HTTP 接口
+    （参考 skill 目录 references/http-api.md），但要走 OAuth 签名，工作量大
+  · 这一步不通，A3 部署就别做，先换内网穿透方案
 
 ------------------------------------------------------------
 A3 · 部署到公网（D3-D4）★ 决定能不能交

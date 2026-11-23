@@ -455,8 +455,9 @@
   /* --- 勾选与重组 --- */
   .item{position:relative;}
   .pickbox{
-    flex-shrink:0;width:26px;padding-top:2px;
+    flex-shrink:0;width:26px;padding-top:2px;display:none;
   }
+  body.select-mode .pickbox{display:block;}
   .pickbox input{
     width:15px;height:15px;accent-color:var(--accent);cursor:pointer;
   }
@@ -472,6 +473,10 @@
     transition:transform .28s cubic-bezier(.2,.8,.2,1);
   }
   .selbar.on{transform:translate(-50%,0);}
+  body.select-mode #result{padding-bottom:170px;}
+  .selbar .go-sel:disabled{opacity:.4;cursor:not-allowed;}
+  .selbar .exit{color:rgba(255,255,255,.62);}
+  .selbar .exit:hover{color:#fff;}
   .selbar .cnt{font-size:13px;letter-spacing:.01em;}
   .selbar .cnt b{font-weight:600;}
   .selbar button{
@@ -599,8 +604,7 @@
   <div class="tech" id="tech"></div>
 
   <div class="actions">
-    <button class="act primary" onclick="alert('下一版做：勾选要点 → 重组成自己的资料')">自己挑重点重组</button>
-    <button class="act" onclick="alert('下一版做：把这份判断生成一段分镜讲解')">生成讲解视频</button>
+    <button class="act" id="pickBtn" onclick="toggleSelectMode()">自己挑重点重组</button>
   </div>
 
   <div class="result-foot">
@@ -627,8 +631,9 @@
 
 <div class="selbar" id="selbar">
   <span class="cnt">已选 <b id="selcount">0</b> 条</span>
-  <button class="go-sel" onclick="openCompose()">整合所选</button>
+  <button class="go-sel" id="goSel" onclick="openCompose()">整合所选</button>
   <button class="clr" onclick="clearSel()">清空</button>
+  <button class="exit" onclick="toggleSelectMode()">退出</button>
 </div>
 
 <div class="modal-mask" id="modal" onclick="if(event.target===this)closeModal()">

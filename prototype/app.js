@@ -22,6 +22,7 @@ const TIMEOUT_MS = 8000;
 let CURRENT = null;
 let TECH_ON = false;
 let selectedIds = new Set();
+let selectMode = false;   // 默认不进入「挑重点」模式
 
 const $ = (id) => document.getElementById(id);
 
@@ -154,7 +155,8 @@ function escapeHtml(s) {
 function render(data, degradedReason) {
   CURRENT = data;
   selectedIds = new Set();
-  updateSelbar();
+  if (selectMode) exitSelectMode(true);
+  syncPickBtn();
   show('result');
 
   const card = (data.cards || [])[0] || {};
@@ -279,6 +281,10 @@ function render(data, degradedReason) {
   $('tech').classList.toggle('on', TECH_ON);
 
   $('fold').classList.remove('open');
+
+  const pickable = (data.answers || []).filter((a) => a.group !== 'hidden').length;
+  const pk = $('pickBtn');
+  if (pk) pk.style.display = pickable ? '' : 'none';
 }
 
 function expand(btn) {
@@ -324,11 +330,52 @@ function override(btn) {
    =========================================================== */
 
 function updateSelbar() {
-  const n = selectedIds.size;
   const bar = $('selbar');
   if (!bar) return;
-  $('selcount').textContent = n;
-  bar.classList.toggle('on', n > 0);
+  $('selcount').textContent = selectedIds.size;
+  bar.classList.toggle('on', selectMode);
+  const go = $('goSel');
+  if (go) go.disabled = selectedIds.size === 0;
+}
+
+/* 进入 / 退出「挑重点」模式
+   默认不显示勾选框：多数人只想要答案，不想做选择。
+   只有用户主动点「自己挑重点重组」才进入选择态。 */
+function toggleSelectMode() {
+  if (selectMode) exitSelectMode();
+  else enterSelectMode();
+}
+
+function enterSelectMode() {
+  selectMode = true;
+  document.body.classList.add('select-mode');
+  updateSelbar();
+  syncPickBtn();
+  const first = document.querySelector('[data-pick]');
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function exitSelectMode(silent) {
+  // 只退出模式，不清空已选——用户可能只是先看一眼答案，
+  // 回头还要接着挑。真要清空有「清空」按钮。
+  selectMode = false;
+  document.body.classList.remove('select-mode');
+  updateSelbar();
+  if (!silent) syncPickBtn();
+}
+
+/* 按钮上带数量，退出后也知道自己选过东西 */
+function syncPickBtn() {
+  const btn = $('pickBtn');
+  if (!btn) return;
+  const n = selectedIds.size;
+  if (selectMode) {
+    btn.textContent = '退出选择';
+    btn.classList.add('primary');
+  } else {
+    btn.textContent = n ? `继续挑重点（已选 ${n} 条）` : '自己挑重点重组';
+    btn.classList.remove('primary');
+  }
 }
 
 function syncPicked() {
@@ -347,6 +394,7 @@ document.addEventListener('change', (e) => {
   else selectedIds.delete(id);
   syncPicked();
   updateSelbar();
+  syncPickBtn();
 });
 
 function clearSel() {
@@ -354,6 +402,7 @@ function clearSel() {
   document.querySelectorAll('[data-pick]').forEach((cb) => { cb.checked = false; });
   syncPicked();
   updateSelbar();
+  syncPickBtn();
 }
 
 const GROUP_TITLE = {
@@ -429,6 +478,7 @@ function expandCmp(btn) {
 
 function closeModal() {
   $('modal').classList.remove('on');
+  syncPickBtn();
 }
 
 function exportMarkdown() {

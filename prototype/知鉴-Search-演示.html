@@ -455,8 +455,9 @@
   /* --- 勾选与重组 --- */
   .item{position:relative;}
   .pickbox{
-    flex-shrink:0;width:26px;padding-top:2px;
+    flex-shrink:0;width:26px;padding-top:2px;display:none;
   }
+  body.select-mode .pickbox{display:block;}
   .pickbox input{
     width:15px;height:15px;accent-color:var(--accent);cursor:pointer;
   }
@@ -472,6 +473,10 @@
     transition:transform .28s cubic-bezier(.2,.8,.2,1);
   }
   .selbar.on{transform:translate(-50%,0);}
+  body.select-mode #result{padding-bottom:170px;}
+  .selbar .go-sel:disabled{opacity:.4;cursor:not-allowed;}
+  .selbar .exit{color:rgba(255,255,255,.62);}
+  .selbar .exit:hover{color:#fff;}
   .selbar .cnt{font-size:13px;letter-spacing:.01em;}
   .selbar .cnt b{font-weight:600;}
   .selbar button{
@@ -599,8 +604,7 @@
   <div class="tech" id="tech"></div>
 
   <div class="actions">
-    <button class="act primary" onclick="alert('下一版做：勾选要点 → 重组成自己的资料')">自己挑重点重组</button>
-    <button class="act" onclick="alert('下一版做：把这份判断生成一段分镜讲解')">生成讲解视频</button>
+    <button class="act" id="pickBtn" onclick="toggleSelectMode()">自己挑重点重组</button>
   </div>
 
   <div class="result-foot">
@@ -1009,6 +1013,7 @@ const TIMEOUT_MS = 8000;
 let CURRENT = null;
 let TECH_ON = false;
 let selectedIds = new Set();
+let selectMode = false;   // 默认不进入「挑重点」模式
 
 const $ = (id) => document.getElementById(id);
 
@@ -1141,7 +1146,8 @@ function escapeHtml(s) {
 function render(data, degradedReason) {
   CURRENT = data;
   selectedIds = new Set();
-  updateSelbar();
+  if (selectMode) exitSelectMode(true);
+  syncPickBtn();
   show('result');
 
   const card = (data.cards || [])[0] || {};
@@ -1266,6 +1272,10 @@ function render(data, degradedReason) {
   $('tech').classList.toggle('on', TECH_ON);
 
   $('fold').classList.remove('open');
+
+  const pickable = (data.answers || []).filter((a) => a.group !== 'hidden').length;
+  const pk = $('pickBtn');
+  if (pk) pk.style.display = pickable ? '' : 'none';
 }
 
 function expand(btn) {
@@ -1311,11 +1321,52 @@ function override(btn) {
    =========================================================== */
 
 function updateSelbar() {
-  const n = selectedIds.size;
   const bar = $('selbar');
   if (!bar) return;
-  $('selcount').textContent = n;
-  bar.classList.toggle('on', n > 0);
+  $('selcount').textContent = selectedIds.size;
+  bar.classList.toggle('on', selectMode);
+  const go = $('goSel');
+  if (go) go.disabled = selectedIds.size === 0;
+}
+
+/* 进入 / 退出「挑重点」模式
+   默认不显示勾选框：多数人只想要答案，不想做选择。
+   只有用户主动点「自己挑重点重组」才进入选择态。 */
+function toggleSelectMode() {
+  if (selectMode) exitSelectMode();
+  else enterSelectMode();
+}
+
+function enterSelectMode() {
+  selectMode = true;
+  document.body.classList.add('select-mode');
+  updateSelbar();
+  syncPickBtn();
+  const first = document.querySelector('[data-pick]');
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function exitSelectMode(silent) {
+  // 只退出模式，不清空已选——用户可能只是先看一眼答案，
+  // 回头还要接着挑。真要清空有「清空」按钮。
+  selectMode = false;
+  document.body.classList.remove('select-mode');
+  updateSelbar();
+  if (!silent) syncPickBtn();
+}
+
+/* 按钮上带数量，退出后也知道自己选过东西 */
+function syncPickBtn() {
+  const btn = $('pickBtn');
+  if (!btn) return;
+  const n = selectedIds.size;
+  if (selectMode) {
+    btn.textContent = '退出选择';
+    btn.classList.add('primary');
+  } else {
+    btn.textContent = n ? `继续挑重点（已选 ${n} 条）` : '自己挑重点重组';
+    btn.classList.remove('primary');
+  }
 }
 
 function syncPicked() {
@@ -1334,6 +1385,7 @@ document.addEventListener('change', (e) => {
   else selectedIds.delete(id);
   syncPicked();
   updateSelbar();
+  syncPickBtn();
 });
 
 function clearSel() {
@@ -1341,6 +1393,7 @@ function clearSel() {
   document.querySelectorAll('[data-pick]').forEach((cb) => { cb.checked = false; });
   syncPicked();
   updateSelbar();
+  syncPickBtn();
 }
 
 const GROUP_TITLE = {
@@ -1416,6 +1469,7 @@ function expandCmp(btn) {
 
 function closeModal() {
   $('modal').classList.remove('on');
+  syncPickBtn();
 }
 
 function exportMarkdown() {
@@ -1462,8 +1516,9 @@ function exportMarkdown() {
 
 <div class="selbar" id="selbar">
   <span class="cnt">已选 <b id="selcount">0</b> 条</span>
-  <button class="go-sel" onclick="openCompose()">整合所选</button>
+  <button class="go-sel" id="goSel" onclick="openCompose()">整合所选</button>
   <button class="clr" onclick="clearSel()">清空</button>
+  <button class="exit" onclick="toggleSelectMode()">退出</button>
 </div>
 
 <div class="modal-mask" id="modal" onclick="if(event.target===this)closeModal()">

@@ -465,14 +465,15 @@
   .item.picked .idx{color:var(--accent);}
 
   .selbar{
-    position:fixed;left:50%;bottom:26px;transform:translate(-50%,140%);
+    position:fixed;left:50%;bottom:26px;
+    transform:translate(-50%,140%);visibility:hidden;
     z-index:40;display:flex;align-items:center;gap:14px;
     padding:11px 12px 11px 20px;
     background:var(--ink);color:#fff;border-radius:14px;
     box-shadow:0 12px 36px -10px rgba(0,0,0,.4);
     transition:transform .28s cubic-bezier(.2,.8,.2,1);
   }
-  .selbar.on{transform:translate(-50%,0);}
+  .selbar.on{transform:translate(-50%,0);visibility:visible;}
   body.select-mode #result{padding-bottom:170px;}
   .selbar .go-sel:disabled{opacity:.4;cursor:not-allowed;}
   .selbar .exit{color:rgba(255,255,255,.62);}
@@ -538,6 +539,9 @@
     font-size:12.5px;cursor:pointer;transition:.16s;
   }
   .more-group:hover{background:#F7F5F0;color:var(--ink-2);border-color:#D6D2C6;}
+  .empty-opts{display:flex;flex-direction:column;gap:9px;margin-top:14px;}
+  .empty-opts .opt{width:100%;text-align:left;display:flex;align-items:center;gap:12px;}
+  .empty-opts .opt .go2{margin-left:auto;color:var(--ink-4);}
 </style>
 </head>
 <body>
@@ -1152,11 +1156,35 @@ function escapeHtml(s) {
   );
 }
 
+/* 收起区的条目渲染。render 和 renderEmpty 都用它，避免两处逻辑分叉。 */
+function hiddenHTML(list) {
+  return `<div class="fold-note">没有删掉它们。你自己看一眼，判断权在你手上。</div>` +
+    list.map((h) => {
+      const c = clip(h.content_text, 240);
+      return `
+      <div class="hid">
+        <div class="why">为什么收起：${escapeHtml((h.reasons || []).join('；') || '内容可疑')}</div>
+        <div class="txt"><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</div>
+        <div class="src">${sourceLine(h)}</div>
+        <button class="override" onclick="override(this)">我认为这条没问题</button>
+      </div>`;
+    }).join('');
+}
+
 function render(data, degradedReason) {
   CURRENT = data;
   selectedIds = new Set();
   if (selectMode) exitSelectMode(true);
   syncPickBtn();
+
+  // 先判断有没有东西可展示。没东西时走空态，不要渲染一个空壳。
+  const all = data.answers || [];
+  const usable = all.filter((a) => a.group !== 'hidden');
+  const forced = new URLSearchParams(location.search).get('state');
+  if (forced === 'empty' || (!usable.length && !forced)) {
+    renderEmpty(data, degradedReason);
+    return;
+  }
   show('result');
 
   const card = (data.cards || [])[0] || {};
@@ -1200,6 +1228,10 @@ function render(data, degradedReason) {
     : '';
   $('rsub').style.display = '';
   $('rquick').innerHTML = points.map((p) => `<li>${escapeHtml(p)}</li>`).join('');
+  if (!points.length) {
+    // 没有要点时那条分隔线会悬空，去掉
+    $('rsub').style.cssText = 'padding-bottom:0;border-bottom:none;margin-bottom:0;';
+  }
 
   /* --- 三段 --- */
   const blocks = [
@@ -1254,20 +1286,7 @@ function render(data, degradedReason) {
     $('fold').style.display = '';
     $('foldn').textContent = hidden.length + ' 条';
     $('foldt').textContent = `另有 ${hidden.length} 条内容，我们觉得你不该直接信`;
-    $('foldbody').innerHTML =
-      `<div class="fold-note">没有删掉它们。你自己看一眼，判断权在你手上。</div>` +
-      hidden
-        .map((h) => {
-          const c = clip(h.content_text, 240);
-          return `
-          <div class="hid">
-            <div class="why">为什么收起：${escapeHtml((h.reasons || []).join('；') || '内容可疑')}</div>
-            <div class="txt"><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</div>
-            <div class="src">${sourceLine(h)}</div>
-            <button class="override" onclick="override(this)">我认为这条没问题</button>
-          </div>`;
-        })
-        .join('');
+    $('foldbody').innerHTML = hiddenHTML(hidden);
   } else {
     $('fold').style.display = 'none';
   }
@@ -1542,6 +1561,113 @@ function exportMarkdown() {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+
+/* ===========================================================
+   空状态
+   -----------------------------------------------------------
+   三种情况要分开说，因为用户接下来该做的事不一样：
+   1. 完全没找到 —— 换个问法
+   2. 找到了但都不可信 —— 可以自己看，或者放宽条件
+   3. 服务出问题 —— 等一会儿或看缓存
+   =========================================================== */
+function renderEmpty(data, degradedReason) {
+  show('result');   // 仍然用结果页的外壳（保留顶栏和搜索框）
+  // 但把主体换成空态
+  $('blocks').innerHTML = '';
+
+  const all = data.answers || [];
+  const isDeg = data.mode === 'degraded' || !!degradedReason;
+  const status = document.querySelector('.status');
+  status.innerHTML = isDeg
+    ? '<i class="dot" style="background:#C9A227"></i>演示数据 · 未连接后端'
+    : '<i class="dot"></i>真实检索 · 本地服务';
+  if (degradedReason) status.title = degradedReason;
+  const hidden = all.filter((a) => a.group === 'hidden');
+  const isDegraded = data.mode === 'degraded' || !!degradedReason;
+  const forced = new URLSearchParams(location.search).get('state');
+
+  let kicker = '说实话';
+  let title = '';
+  let reason = '';
+  const opts = [];
+
+  if (forced === 'empty' || (!all.length && !isDegraded)) {
+    title = '这次一条都没找到';
+    reason = '不是所有问题都能在社区里找到答案。有些太新、有些太窄，或者问法跟别人用的不一样。';
+    opts.push({ label: '换个说法试试', hint: '比如把「哪个好」换成「有什么缺点」', action: 'home' });
+  } else if (!all.filter((a) => a.group !== 'hidden').length && hidden.length) {
+    title = `找到 ${all.length} 条，但都不太可信`;
+    reason = `它们要么在卖东西，要么信息太旧。我没有删，放在下面了，你可以自己判断。`;
+    opts.push({ label: `看看这 ${all.length} 条`, hint: '它们可能对你仍有参考价值', action: 'showHidden' });
+    opts.push({ label: '换个问法', hint: '换个角度可能找到更实在的经验', action: 'home' });
+  } else {
+    kicker = '暂时不行';
+    title = '现在拿不到内容';
+    reason = degradedReason || '检索服务没有响应。可能是网络问题，也可能是今天的调用次数用完了。';
+    opts.push({ label: '再试一次', hint: '如果是网络抖动，重试通常就好了', action: 'retry' });
+    opts.push({ label: '换个问法', hint: '', action: 'home' });
+  }
+
+  $('rq').textContent = data.query || '';
+  $('rmeta').textContent = data.intent_label || '';
+  $('rcount').textContent = all.length ? `找到 ${all.length} 条` : '';
+
+  $('rkicker').textContent = kicker;
+  $('rhead').textContent = title;
+  $('rhead').style.fontSize = '21px';
+  $('rhead').style.color = 'var(--ink)';
+  $('rsub').textContent = reason;
+  $('rsub').style.cssText = 'padding-bottom:0;border-bottom:none;margin-bottom:0;';
+  $('rquick').innerHTML = '';
+
+  // 建议卡片塞进第一段的位置
+  $('blocks').innerHTML = `
+    <div class="block">
+      <div class="block-head"><h3>接下来可以</h3><span class="tag">${opts.length} 个建议</span></div>
+      <div class="empty-opts">
+        ${opts.map((o, i) => `
+          <button class="opt" onclick="emptyAction('${o.action}')">
+            <div><div class="lab">${escapeHtml(o.label)}</div>${o.hint ? `<div class="hint">${escapeHtml(o.hint)}</div>` : ''}</div>
+            <span class="go2">→</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+
+  // 即使当前不显示，也要把收起区的内容填好——
+  // 用户点「看看这 N 条」时要能立刻展开，不能是空的
+  if (hidden.length) {
+    $('foldn').textContent = hidden.length + ' 条';
+    $('foldt').textContent = `另有 ${hidden.length} 条内容，我们觉得你不该直接信`;
+    $('foldbody').innerHTML = hiddenHTML(hidden);
+    $('fold').style.display = 'none';
+  } else {
+    $('fold').style.display = 'none';
+  }
+  $('pickBtn').style.display = 'none';
+  $('tech').innerHTML = '';
+  $('tech').classList.remove('on');
+  syncPickBtn();
+}
+
+function emptyAction(action) {
+  if (action === 'home') { goHome(); return; }
+  if (action === 'retry') {
+    if (CURRENT && CURRENT.query) doSearch(CURRENT.query);
+    return;
+  }
+  if (action === 'showHidden') {
+    // 把被收起的内容摊开：三段清空，只留收起区并展开
+    $('blocks').innerHTML = `<div class="block"><div class="block-head">
+      <h3>这些都被判为不可信</h3><span class="tag">没有删除，只是收起</span></div></div>`;
+    $('fold').style.display = '';
+    $('fold').classList.add('open');
+    $('rhead').textContent = '你自己看一眼';
+    $('rkicker').textContent = '判断权在你';
+    $('rsub').textContent = '下面这些是系统觉得不该直接信的。可能判错，你可以点「我认为这条没问题」推翻它。';
+    return;
+  }
 }
 
 </script>

@@ -465,14 +465,15 @@
   .item.picked .idx{color:var(--accent);}
 
   .selbar{
-    position:fixed;left:50%;bottom:26px;transform:translate(-50%,140%);
+    position:fixed;left:50%;bottom:26px;
+    transform:translate(-50%,140%);visibility:hidden;
     z-index:40;display:flex;align-items:center;gap:14px;
     padding:11px 12px 11px 20px;
     background:var(--ink);color:#fff;border-radius:14px;
     box-shadow:0 12px 36px -10px rgba(0,0,0,.4);
     transition:transform .28s cubic-bezier(.2,.8,.2,1);
   }
-  .selbar.on{transform:translate(-50%,0);}
+  .selbar.on{transform:translate(-50%,0);visibility:visible;}
   body.select-mode #result{padding-bottom:170px;}
   .selbar .go-sel:disabled{opacity:.4;cursor:not-allowed;}
   .selbar .exit{color:rgba(255,255,255,.62);}
@@ -538,6 +539,9 @@
     font-size:12.5px;cursor:pointer;transition:.16s;
   }
   .more-group:hover{background:#F7F5F0;color:var(--ink-2);border-color:#D6D2C6;}
+  .empty-opts{display:flex;flex-direction:column;gap:9px;margin-top:14px;}
+  .empty-opts .opt{width:100%;text-align:left;display:flex;align-items:center;gap:12px;}
+  .empty-opts .opt .go2{margin-left:auto;color:var(--ink-4);}
 </style>
 </head>
 <body>

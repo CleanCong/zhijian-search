@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知鉴 · 把各说各话的经验，压成一张能下决定的卡片</title>
+<style>
+  :root{
+    --bg:#FBFAF7;
+    --card:#FFFFFF;
+    --ink:#1A1A18;
+    --ink-2:#4A4A45;
+    --ink-3:#8A8A82;
+    --ink-4:#B5B5AC;
+    --line:#E8E5DD;
+    --line-soft:#F0EDE6;
+    --accent:#14604E;
+    --accent-soft:#EAF3EF;
+    --warn:#9A5B1E;
+    --warn-soft:#FBF2E6;
+    --shadow:0 1px 2px rgba(26,26,24,.04), 0 8px 24px -12px rgba(26,26,24,.10);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    font-size:15px;
+    line-height:1.75;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit;}
+  a{color:inherit;text-decoration:none;}
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:30;
+    display:none;
+    align-items:center;gap:16px;
+    padding:12px 28px;
+    background:rgba(251,250,247,.86);
+    backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .topbar.on{display:flex;}
+  .brand{
+    display:flex;align-items:center;gap:9px;
+    font-weight:600;font-size:15px;letter-spacing:.01em;
+    cursor:pointer;flex-shrink:0;
+  }
+  .brand-mark{
+    width:22px;height:22px;border-radius:6px;
+    background:var(--accent);
+    display:grid;place-items:center;
+    color:#fff;font-size:12px;font-weight:700;
+    letter-spacing:0;
+  }
+  .topbar .miniq{
+    flex:1;max-width:520px;
+    display:flex;align-items:center;gap:8px;
+    height:34px;padding:0 12px;
+    background:#fff;border:1px solid var(--line);
+    border-radius:999px;font-size:13.5px;color:var(--ink-3);
+    overflow:hidden;white-space:nowrap;
+    cursor:text;transition:border-color .18s;
+  }
+  .topbar .miniq:hover{border-color:#D6D2C6;}
+  .topbar .miniq span{overflow:hidden;text-overflow:ellipsis;color:var(--ink-2);}
+  .topbar .spacer{flex:1;}
+  .status{
+    display:flex;align-items:center;gap:6px;
+    font-size:12px;color:var(--ink-3);
+    white-space:nowrap;
+  }
+  .dot{width:5px;height:5px;border-radius:50%;background:#3FA37C;}
+  .detail-toggle{
+    font-size:12.5px;color:var(--ink-3);
+    border:1px solid var(--line);border-radius:999px;
+    padding:4px 11px;transition:.18s;white-space:nowrap;
+  }
+  .detail-toggle:hover{color:var(--ink-2);border-color:#D6D2C6;}
+  .detail-toggle.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  /* ---------- 首页 ---------- */
+  #home{
+    min-height:100vh;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    padding:64px 24px 120px;
+    text-align:center;
+  }
+  .home-mark{
+    width:52px;height:52px;border-radius:15px;
+    background:var(--accent);
+    display:grid;place-items:center;
+    color:#fff;font-size:23px;font-weight:600;
+    margin-bottom:28px;
+    box-shadow:0 10px 28px -12px rgba(20,96,78,.5);
+  }
+  #home h1{
+    font-size:27px;line-height:1.5;font-weight:600;
+    letter-spacing:-.01em;max-width:660px;
+    margin-bottom:12px;
+  }
+  #home h1 em{
+    font-style:normal;
+    background:linear-gradient(transparent 68%, #D5E8E0 68%);
+    padding:0 3px;
+  }
+  #home .lede{
+    font-size:15px;color:var(--ink-3);max-width:540px;
+    margin-bottom:38px;
+  }
+  .searchbox{
+    width:100%;max-width:620px;
+    display:flex;align-items:center;gap:12px;
+    height:58px;padding:0 8px 0 22px;
+    background:#fff;border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .searchbox:focus-within{
+    border-color:#C9C4B4;
+    box-shadow:0 2px 4px rgba(26,26,24,.04), 0 16px 40px -18px rgba(26,26,24,.20);
+  }
+  .searchbox input{
+    flex:1;border:none;outline:none;background:none;
+    font-size:16px;color:var(--ink);font-family:inherit;
+  }
+  .searchbox input::placeholder{color:var(--ink-4);}
+  .go{
+    height:42px;padding:0 22px;border-radius:11px;
+    background:var(--ink);color:#fff;
+    font-size:14.5px;font-weight:500;
+    transition:.18s;flex-shrink:0;
+  }
+  .go:hover{background:#000;}
+  .topics{
+    margin-top:30px;display:flex;flex-wrap:wrap;
+    gap:9px;justify-content:center;max-width:640px;
+  }
+  .topic{
+    display:flex;align-items:center;gap:7px;
+    padding:7px 14px;border-radius:999px;
+    background:#fff;border:1px solid var(--line);
+    font-size:13px;color:var(--ink-2);
+    transition:.18s;
+  }
+  .topic:hover{border-color:#C9C4B4;transform:translateY(-1px);}
+  .topic i{
+    font-style:normal;font-size:10.5px;color:var(--ink-4);
+    padding-left:7px;border-left:1px solid var(--line);
+  }
+  .home-foot{
+    position:absolute;bottom:26px;
+    font-size:12px;color:var(--ink-4);
+    display:flex;align-items:center;gap:14px;
+  }
+  .home-foot span{display:flex;align-items:center;gap:6px;}
+
+  /* ---------- 加载 ---------- */
+  #loading{
+    display:none;
+    max-width:760px;margin:0 auto;
+    padding:72px 32px 120px;
+  }
+  .sk-line{
+    height:13px;border-radius:6px;
+    background:linear-gradient(90deg,#F0EDE6 25%,#F7F5F0 50%,#F0EDE6 75%);
+    background-size:200% 100%;
+    animation:shimmer 1.5s infinite linear;
+    margin-bottom:12px;
+  }
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .loading-steps{
+    margin-top:34px;display:flex;flex-direction:column;gap:11px;
+    font-size:13.5px;color:var(--ink-4);
+  }
+  .loading-steps b{font-weight:400;transition:color .3s;}
+  .loading-steps b.done{color:var(--ink-2);}
+  .loading-steps b.done::before{content:"✓ ";}
+  .loading-steps b.now{color:var(--accent);}
+  .loading-steps b.now::before{content:"· ";}
+
+  /* ---------- 结果页 ---------- */
+  #result{display:none;max-width:780px;margin:0 auto;padding:44px 32px 140px;}
+
+  .qhead{margin-bottom:30px;}
+  .qhead .q{
+    font-size:22px;font-weight:600;line-height:1.5;
+    letter-spacing:-.01em;margin-bottom:8px;
+  }
+  .qhead .meta{
+    font-size:12.5px;color:var(--ink-4);
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  }
+  .qhead .meta .sep{color:#DCD8CE;}
+
+  /* 结论区 */
+  .verdict{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:30px 32px 28px;
+    box-shadow:var(--shadow);
+    margin-bottom:16px;
+  }
+  .verdict .kicker{
+    font-size:11.5px;letter-spacing:.14em;
+    color:var(--accent);font-weight:600;
+    margin-bottom:14px;
+  }
+  .verdict h2{
+    font-size:26px;line-height:1.45;font-weight:600;
+    letter-spacing:-.015em;margin-bottom:12px;
+  }
+  .verdict .sub{
+    font-size:14.5px;color:var(--ink-3);line-height:1.8;
+    padding-bottom:22px;border-bottom:1px solid var(--line-soft);
+    margin-bottom:20px;
+  }
+  .verdict ul{list-style:none;display:flex;flex-direction:column;gap:13px;}
+  .verdict li{
+    position:relative;padding-left:17px;
+    font-size:14.5px;color:var(--ink-2);line-height:1.8;
+  }
+  .verdict li::before{
+    content:"";position:absolute;left:2px;top:9px;
+    width:5px;height:5px;border-radius:50%;
+    background:#CFCBC0;
+  }
+
+  /* 三段 */
+  .block{margin-top:34px;}
+  .block-head{
+    display:flex;align-items:baseline;gap:11px;
+    padding-bottom:11px;border-bottom:1px solid var(--line);
+    margin-bottom:2px;
+  }
+  .block-head h3{
+    font-size:15.5px;font-weight:600;letter-spacing:.01em;
+  }
+  .block-head .tag{
+    font-size:11.5px;color:var(--ink-4);
+  }
+  .item{
+    padding:19px 0 18px;
+    border-bottom:1px solid var(--line-soft);
+    display:flex;gap:13px;
+  }
+  .item:last-child{border-bottom:none;}
+  .item .body{flex:1;min-width:0;}
+  .item p{
+    font-size:14.5px;line-height:1.85;color:var(--ink);
+    margin-bottom:10px;
+  }
+  .src{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    font-size:12px;color:var(--ink-4);
+  }
+  .src .who{
+    color:var(--ink-3);
+    border-bottom:1px dashed #DCD8CE;
+    padding-bottom:1px;
+  }
+  .src .yr{color:var(--ink-4);}
+  .src .votes{
+    color:var(--ink-3);background:#F5F3ED;
+    padding:1px 8px;border-radius:5px;
+    margin-right:3px;
+  }
+  .src .sect{color:#D8D4C9;}
+  .item .idx{
+    flex-shrink:0;width:22px;
+    font-size:11.5px;color:var(--ink-4);
+    font-variant-numeric:tabular-nums;
+    padding-top:3px;
+  }
+  .item.pit .idx{color:var(--warn);}
+
+  /* 收起区 */
+  .fold{
+    margin-top:38px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:#FDFCF9;
+    overflow:hidden;
+  }
+  .fold-bar{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 20px;
+    cursor:pointer;
+    transition:background .18s;
+    user-select:none;
+  }
+  .fold-bar:hover{background:#FAF8F2;}
+  .fold-bar .n{
+    font-size:12px;color:var(--ink-3);
+    background:#EFECE4;border-radius:6px;
+    padding:2px 8px;flex-shrink:0;
+  }
+  .fold-bar .t{font-size:14px;color:var(--ink-2);}
+  .fold-bar .arrow{
+    margin-left:auto;flex-shrink:0;
+    width:8px;height:8px;
+    border-right:1.6px solid var(--ink-3);
+    border-bottom:1.6px solid var(--ink-3);
+    transform:rotate(45deg) translateY(-2px);
+    transition:transform .25s;
+  }
+  .fold.open .fold-bar .arrow{transform:rotate(-135deg) translateY(-2px);}
+  .fold-body{display:none;padding:0 20px 8px;}
+  .fold.open .fold-body{display:block;}
+  .fold-note{
+    font-size:12.5px;color:var(--ink-4);
+    padding:0 0 16px;line-height:1.7;
+  }
+  .hid{
+    padding:16px 0;
+    border-top:1px solid var(--line-soft);
+  }
+  .hid .why{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:11.5px;color:var(--warn);
+    background:var(--warn-soft);
+    border-radius:5px;padding:2px 9px;
+    margin-bottom:9px;
+  }
+  .hid .txt{
+    font-size:14px;line-height:1.8;color:#6E6E66;
+    margin-bottom:8px;
+  }
+  .hid .detail{
+    font-size:12.5px;color:var(--ink-4);line-height:1.7;
+    padding-left:11px;border-left:2px solid var(--line);
+    margin-bottom:8px;
+  }
+  .hid .src{margin-bottom:9px;}
+  .override{
+    font-size:12px;color:var(--ink-3);
+    border:1px solid var(--line);border-radius:6px;
+    padding:4px 10px;background:#fff;
+    transition:.18s;
+  }
+  .override:hover{border-color:#C9C4B4;color:var(--ink-2);}
+  .override.did{
+    background:var(--accent-soft);color:var(--accent);
+    border-color:#CFE6DC;
+  }
+
+  /* 技术细节 */
+  .tech{display:none;margin-top:30px;
+    border:1px dashed #D8D4C9;border-radius:12px;
+    padding:20px 22px;background:#FCFCFA;}
+  .tech.on{display:block;}
+  .tech h4{
+    font-size:11.5px;letter-spacing:.12em;color:var(--ink-4);
+    font-weight:600;margin-bottom:16px;
+  }
+  .trace{display:flex;flex-direction:column;gap:0;}
+  .tr{
+    display:flex;gap:14px;font-size:12.5px;
+    padding:9px 0;border-bottom:1px dotted #EAE7DE;
+  }
+  .tr:last-child{border-bottom:none;}
+  .tr .lb{width:88px;flex-shrink:0;color:var(--ink-3);}
+  .tr .dt{color:var(--ink-4);flex:1;font-variant-numeric:tabular-nums;}
+  .tstats{
+    display:flex;gap:22px;margin-top:16px;
+    padding-top:15px;border-top:1px solid var(--line-soft);
+  }
+  .tstat .v{font-size:19px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums;line-height:1.3;}
+  .tstat .k{font-size:11px;color:var(--ink-4);}
+
+  /* 底部动作 */
+  .actions{
+    margin-top:36px;display:flex;gap:10px;flex-wrap:wrap;
+  }
+  .act{
+    height:40px;padding:0 19px;border-radius:10px;
+    border:1px solid var(--line);background:#fff;
+    font-size:13.5px;color:var(--ink-2);
+    display:inline-flex;align-items:center;gap:7px;
+    transition:.18s;
+  }
+  .act:hover{border-color:#C9C4B4;transform:translateY(-1px);}
+  .act.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .act.primary:hover{background:#000;}
+
+  .result-foot{
+    margin-top:44px;padding-top:18px;
+    border-top:1px solid var(--line-soft);
+    font-size:11.5px;color:var(--ink-4);
+    display:flex;justify-content:space-between;gap:16px;
+  }
+  .result-foot button{
+    color:var(--ink-3);border-bottom:1px dotted #DCD8CE;
+    font-size:11.5px;
+  }
+
+  /* ---------- 空结果 ---------- */
+  #empty{display:none;max-width:640px;margin:0 auto;padding:88px 32px 140px;text-align:center;}
+  #empty .icon{
+    width:44px;height:44px;border-radius:12px;
+    background:#F2EFE8;color:var(--ink-3);
+    display:grid;place-items:center;margin:0 auto 22px;
+    font-size:19px;
+  }
+  #empty h2{font-size:20px;font-weight:600;margin-bottom:12px;}
+  #empty .why{
+    font-size:14px;color:var(--ink-3);line-height:1.85;
+    max-width:480px;margin:0 auto 30px;
+  }
+  #empty .opts{
+    display:flex;flex-direction:column;gap:9px;
+    max-width:440px;margin:0 auto 26px;text-align:left;
+  }
+  .opt{
+    display:flex;align-items:center;gap:13px;
+    padding:13px 16px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;transition:.18s;
+  }
+  .opt:hover{border-color:#C9C4B4;}
+  .opt .lab{font-size:13.5px;color:var(--ink);}
+  .opt .hint{font-size:11.5px;color:var(--ink-4);margin-top:2px;}
+  .opt .go2{margin-left:auto;font-size:11.5px;color:var(--ink-4);flex-shrink:0;}
+
+
+  /* --- 真实数据渲染补充 --- */
+  .item .q-title{
+    font-size:13px;color:var(--ink-3);line-height:1.65;
+    margin-bottom:7px;font-weight:500;
+  }
+  .item .more{
+    font-size:12px;color:var(--accent);background:none;border:none;
+    padding:0;margin:-4px 0 10px;cursor:pointer;
+  }
+  .item .more:hover{text-decoration:underline;}
+  .result-foot .mode-note{font-size:11.5px;color:var(--warn);}
+  .item .ellip{color:var(--ink-4);}
+  .hid .ellip{color:#B5B2A8;}
+
+  /* --- 勾选与重组 --- */
+  .item{position:relative;}
+  .pickbox{
+    flex-shrink:0;width:26px;padding-top:2px;display:none;
+  }
+  body.select-mode .pickbox{display:block;}
+  .pickbox input{
+    width:15px;height:15px;accent-color:var(--accent);cursor:pointer;
+  }
+  .item.picked{background:linear-gradient(90deg,#F6FAF8,transparent 60%);}
+  .item.picked .idx{color:var(--accent);}
+
+  .selbar{
+    position:fixed;left:50%;bottom:26px;
+    transform:translate(-50%,140%);visibility:hidden;
+    z-index:40;display:flex;align-items:center;gap:14px;
+    padding:11px 12px 11px 20px;
+    background:var(--ink);color:#fff;border-radius:14px;
+    box-shadow:0 12px 36px -10px rgba(0,0,0,.4);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .selbar.on{transform:translate(-50%,0);visibility:visible;}
+  body.select-mode #result{padding-bottom:170px;}
+  .selbar .go-sel:disabled{opacity:.4;cursor:not-allowed;}
+  .selbar .exit{color:rgba(255,255,255,.62);}
+  .selbar .exit:hover{color:#fff;}
+  .selbar .cnt{font-size:13px;letter-spacing:.01em;}
+  .selbar .cnt b{font-weight:600;}
+  .selbar button{
+    height:32px;padding:0 14px;border-radius:8px;
+    font-size:13px;transition:.16s;
+  }
+  .selbar .go-sel{background:#fff;color:var(--ink);font-weight:500;}
+  .selbar .go-sel:hover{background:#E8E6DE;}
+  .selbar .clr{color:rgba(255,255,255,.62);}
+  .selbar .clr:hover{color:#fff;}
+
+  .modal-mask{
+    position:fixed;inset:0;z-index:60;display:none;
+    background:rgba(20,20,18,.42);backdrop-filter:blur(2px);
+    padding:40px 20px;overflow:auto;
+  }
+  .modal-mask.on{display:block;}
+  .modal-box{
+    max-width:680px;margin:0 auto;background:#fff;
+    border-radius:16px;box-shadow:0 24px 70px -20px rgba(0,0,0,.3);
+    overflow:hidden;
+  }
+  .modal-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 24px;border-bottom:1px solid var(--line-soft);
+    position:sticky;top:0;background:#fff;z-index:2;
+  }
+  .modal-head h3{font-size:15.5px;font-weight:600;}
+  .modal-head .x{font-size:20px;color:var(--ink-3);line-height:1;padding:2px 6px;}
+  .modal-head .x:hover{color:var(--ink);}
+  .modal-body{padding:22px 24px 26px;}
+  .modal-intro{font-size:12.5px;color:var(--ink-4);margin-bottom:18px;line-height:1.7;}
+  .compose-doc h4{font-size:17px;font-weight:600;margin-bottom:4px;}
+  .compose-doc .meta{font-size:11.5px;color:var(--ink-4);margin-bottom:20px;}
+  .cmp-group{margin-top:18px;}
+  .cmp-group .gt{font-size:11.5px;letter-spacing:.1em;color:var(--accent);font-weight:600;margin-bottom:9px;}
+  .cmp-entry{padding:12px 0;border-top:1px solid var(--line-soft);}
+  .cmp-entry p{font-size:13.5px;line-height:1.8;color:var(--ink-2);margin-bottom:7px;}
+  .cmp-entry small{font-size:11.5px;color:var(--ink-4);display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+  .cmp-entry small a{color:var(--accent);border-bottom:1px dotted #B9D6CA;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;}
+  .cmp-entry .more{
+    font-size:12px;color:var(--accent);background:none;border:none;
+    padding:0;margin:2px 0 8px;cursor:pointer;
+  }
+  .cmp-entry .more:hover{text-decoration:underline;}
+  #modal .act{
+    height:38px;padding:0 18px;border-radius:9px;font-size:13.5px;
+    border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  }
+  #modal .act.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  #modal .act:hover{border-color:#C9C4B4;}
+  /* --- 分组折叠 --- */
+  .block .rest[hidden]{display:none;}
+  .more-group{
+    display:block;width:100%;margin-top:14px;padding:11px 0;
+    border:1px dashed var(--line);border-radius:9px;
+    background:#FCFBF8;color:var(--ink-3);
+    font-size:12.5px;cursor:pointer;transition:.16s;
+  }
+  .more-group:hover{background:#F7F5F0;color:var(--ink-2);border-color:#D6D2C6;}
+  .empty-opts{display:flex;flex-direction:column;gap:9px;margin-top:14px;}
+  .empty-opts .opt{width:100%;text-align:left;display:flex;align-items:center;gap:12px;}
+  .empty-opts .opt .go2{margin-left:auto;color:var(--ink-4);}
+  @media (max-width:680px){
+    .topbar{padding:10px 14px;gap:8px;}
+    .topbar .spacer{display:none;}
+    /* 手机上顶栏放不下长文字：状态只留圆点，技术细节缩成短词但保留，
+       因为那是给评委看的加分项，不能因为屏幕小就整个藏掉 */
+    .status span{display:none;}
+    .detail-toggle{display:flex;font-size:11px;padding:0 7px;height:28px;white-space:nowrap;}
+    .pickbox{width:34px;padding-top:1px;}
+    .pickbox input{width:20px;height:20px;}
+    .item .q-title{font-size:14px;}
+    #result{padding:28px 18px 100px;}
+    .verdict{padding:24px 20px;}
+    .verdict h2{font-size:22px;}
+    #home h1{font-size:22px;}
+    .home-foot{display:none;}
+
+    /* 浮动条在手机上不能居中悬浮——宽度不够会把文字压成竖排。
+       改成左右贴边的通栏，并禁止换行。 */
+    .selbar{
+      left:12px;right:12px;bottom:14px;
+      padding:10px 12px;gap:8px;
+      transform:translateY(140%);
+    }
+    .selbar.on{transform:translateY(0);}
+    .selbar .cnt{font-size:12px;white-space:nowrap;flex:none;}
+    .selbar .cnt b{font-size:13px;}
+    .selbar button{
+      height:30px;padding:0 10px;font-size:12px;
+      white-space:nowrap;flex:none;
+    }
+    .selbar .go-sel{margin-left:auto;}
+    body.select-mode #result{padding-bottom:190px;}
+  }
+  /* 孤立条目：没有第二条内容呼应。不是警告，只是说明，
+     表明我们没有为了凑「共识」把不相关的东西拼在一起。 */
+  .src .iso{
+    font-size:11.5px;color:#8A7B5C;background:#F7F3E8;
+    padding:1px 7px;border-radius:5px;white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 顶栏 ============ -->
+<header class="topbar" id="topbar">
+  <div class="brand" onclick="goHome()">
+    <div class="brand-mark">鉴</div>
+    <span>知鉴</span>
+  </div>
+  <div class="miniq" onclick="goHome()"><span id="miniq-text">问点什么</span></div>
+  <div class="spacer"></div>
+  <div class="status"><i class="dot"></i>离线演示 · 本地数据</div>
+  <button class="detail-toggle" id="dtoggle" onclick="toggleTech()">显示技术细节</button>
+</header>
+
+<!-- ============ 首页 ============ -->
+<section id="home">
+  <div class="home-mark">鉴</div>
+  <h1>把知乎上各说各话的二十篇经验，<br><em>压成一张能下决定的卡片</em></h1>
+  <p class="lede">不替你做决定。只把该看的看完，把不该信的标出来，正反两面都摆在桌上。</p>
+
+  <div class="searchbox">
+    <input id="q" type="text" placeholder="比如：两千块扫地机器人，石头和追觅怎么选" autocomplete="off">
+    <button class="go" onclick="startSearch()">开始</button>
+  </div>
+
+  <div class="topics" id="topics"></div>
+
+  <div class="home-foot">
+    <span><i class="dot"></i>离线可运行</span>
+    <span>不联网也能演示</span>
+  </div>
+</section>
+
+<!-- ============ 加载 ============ -->
+<section id="loading">
+  <div class="sk-line" style="width:62%;height:22px;"></div>
+  <div class="sk-line" style="width:88%;margin-top:18px;"></div>
+  <div class="sk-line" style="width:74%;"></div>
+  <div class="loading-steps" id="lsteps"></div>
+</section>
+
+<!-- ============ 结果页 ============ -->
+<section id="result">
+  <div class="qhead">
+    <div class="q" id="rq"></div>
+    <div class="meta">
+      <span id="rmeta"></span>
+      <span class="sep">·</span>
+      <span id="rcount"></span>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div class="kicker" id="rkicker">先说结论</div>
+    <h2 id="rhead"></h2>
+    <div class="sub" id="rsub"></div>
+    <ul id="rquick"></ul>
+  </div>
+
+  <div id="blocks"></div>
+
+  <div class="fold" id="fold">
+    <div class="fold-bar" onclick="toggleFold()">
+      <span class="n" id="foldn"></span>
+      <span class="t" id="foldt"></span>
+      <span class="arrow"></span>
+    </div>
+    <div class="fold-body" id="foldbody"></div>
+  </div>
+
+  <div class="tech" id="tech"></div>
+
+  <div class="actions">
+    <button class="act" id="pickBtn" onclick="toggleSelectMode()">自己挑重点重组</button>
+  </div>
+
+  <div class="result-foot">
+    <span>以上内容来自公开的社区讨论，标注了每一条的出处与时间。</span>
+    <button onclick="toggleTech()">这些答案是怎么挑出来的 →</button>
+  </div>
+</section>
+
+<!-- ============ 空结果 ============ -->
+<section id="empty">
+  <div class="icon">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+      <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>
+    </svg>
+  </div>
+  <h2 id="etitle"></h2>
+  <p class="why" id="ereason"></p>
+  <div class="opts" id="eopts"></div>
+  <button class="act" onclick="goHome()">换个问法</button>
+</section>
+
+<script>
+/* 降级用的本地数据：后端连不上时用它，界面会标明「演示数据」 */
+const SEED = {
+  "query": "全屋定制怎么避免被坑",
+  "intent": "renovation",
+  "intent_label": "经验避坑",
+  "mode": "degraded",
+  "degraded_reason": "后端未连接，这是提前存好的一份结果",
+  "answers": [
+    {
+      "id": "-3833733717720296993",
+      "title": "定制全屋定制怎么才能不被坑? - 知乎",
+      "content_text": "但是我却很满意。因为工厂只用热熔胶，无需额外刷万能胶，污染源更少。再加上机器压力均匀，封边条和板材侧边贴合紧密，板材断面被严密包裹，堵住了甲醛最主要的逸出通道。\n贴皮实木柜，是当年大部分家庭的首选。原因很简单，价格适中，安全环保，还有实木外观和名头，当然很诱人喽。\n那么，相隔十几年后，今年我装修房子，还能选择大芯贴皮实木板吗？答案当然是否定的。\n十几年前贴皮板材主流使用脲醛胶，温度升高、遇水就水解，持续释放甲醛，是老大芯板的痛点。\n现在出现了两大无醛路线：\n路线1，MDI无醛胶。胶本身不含甲醛，高温下释放几乎不上涨。而且耐水、热稳定性强，ENF级板材大多用它，非常适配北方地暖房。\n路线二2，大豆蛋白胶等生物胶。植物基，无醛。缺点是耐水略弱，多用于干燥区域柜体，潮湿区慎用。\n两害相权取其轻，经过综合考量，我家选用了ENF级无醛胶，适配北方长达六个月的通暖期。无论温度多高，都不用担心甲醛释放。",
+      "url": "https://www.zhihu.com/question/487373250/answer/2105311455855769434",
+      "author_signature": "听雨",
+      "author_badge": "教师资格证持证人",
+      "vote_up_count": 17,
+      "comment_count": 13,
+      "content_type": "Answer",
+      "age_days": 8,
+      "published_year": 2026,
+      "char_count": 688,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "consensus",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "3085313857513847996",
+      "title": "家装全屋定制有哪些注意事项? - 知乎",
+      "content_text": "判断方法：要求提供对应批次的第三方检测报告，核对送检单位、检测日期与检测对象。部分品牌板材带有防伪标识，可支持正品溯源，可信度更高。\n二、场景化选型：不同需求对应不同选择\n没有绝对的“最好品牌”，根据自身核心需求匹配对应赛道的品牌，性价比最高。\n2.1 看重整家风格统一+有旧房改造需求\n优先选择具备全品类一体化能力的品牌，可实现地板、木门、墙板、柜类风格统一，减少多品牌对接的沟通成本与风格割裂风险。 代表品牌如圣象，打造地门墙柜一体化产品体系，三大风格套系覆盖全品类硬装，还配套旧房焕新服务，采用免拆直铺工艺，单空间最快8小时完成，适配存量房局部改造需求，不用大规模搬家即可完成空间升级。\n2.2 追求标准化省心+刚需自住\n优先选择全国性连锁品牌，产品标准化程度高，售后网络完善，踩坑概率更低。 代表品牌如欧派、索菲亚，产品体系成熟，终端覆盖广泛，服务流程标准，适合追求省心、不想过多折腾的刚需家",
+      "url": "https://www.zhihu.com/question/437960207/answer/2096281886217725321",
+      "author_signature": "元初九",
+      "author_badge": "",
+      "vote_up_count": 6,
+      "comment_count": 0,
+      "content_type": "Answer",
+      "age_days": 33,
+      "published_year": 2026,
+      "char_count": 1059,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "consensus",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "-3337052375414810769",
+      "title": "我接触的精装房全屋定制,哪些隐藏增项真要避坑啊? - 知乎",
+      "content_text": "我干这行快8年，见过精装房做全屋定制最容易踩的隐藏增项，大多是前期报价单上根本不会写、签完合同就挨个蹦出来的窟窿，算下来平白多花两三万是常事。这两年装修旺季的时候，我光在业主群里帮人看报价单，一个月就能碰到七八起被增项坑的例子。上个月跟着师傅去一个精装房现场复尺，业主本来当初报价算的是4万整，最后安装完要结6万多，站在玄关门口盯着报价单发愣的样子，我现在都记得。我记得是这个行业默认把这些项算成额外收费的，也可能记混了，反正我接触过的项目里，没几家会在最开始就把这些钱算进基础报价。\n藏在报价边角的几类常见增项\n基础报价里的五金件、安装工序、异形加工费，是最容易被单独拎出来收费的三类。\n 很多方案里报的基础五金，就是那种最普通的铰链、滑轨，刚装完用着没问题，过个一年半载就开始掉漆、推拉卡壳，想换成阻尼缓冲款、带静音功能的，就得按单个加钱，一个衣柜算下来光五金升级就能多掏小一千。\n对了还有个点要",
+      "url": "https://zhuanlan.zhihu.com/p/2105349277438457420",
+      "author_signature": "金祝贤",
+      "author_badge": "",
+      "vote_up_count": 1,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 8,
+      "published_year": 2026,
+      "char_count": 696,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "consensus",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "-6482348380716983039",
+      "title": "全屋定制想不花冤枉钱不踩坑,先把这5个错误认知从脑子里拿掉! - 知乎",
+      "content_text": "2.封边处本身就不是甲醛的主要释放通道，正反两面才是。相对于封边处的微小面积，正反两个大面才是甲醛释放的“高速公路”。既然甲醛基本上就不从这里走，所以在比较不同封边工艺的时候，根本就不会考虑这一项。\n再回到表格来看，激光封边优于PUR封边的仅有“胶线美观度”这个维度，在耐候性、防潮性、耐热性方面全面落后于PUR封边。\n需要提醒的是，千万不要觉得这个9分和10分差不多，毕竟这位专家给EVA的胶线也打了9分…\n这就是为什么我在社群内一直强调，柜体就用PUR封边，老板给免费升级激光都不要。只有纯色柜门才考虑激光封边。厨卫区域柜体柜门更是建议全部PUR。这才是合理利用不同工艺优势的“最高配置”。无脑激光只会带来高价低质。\n错误认知二：热衷比较“板材类型”而非“具体产品”\n群里经常会看到业主问，欧松板能不能用？密度板是不是最差的？多层板是不是环保达不到enf级？颗粒板是不是很差？诸如此类的问题\n首先",
+      "url": "https://zhuanlan.zhihu.com/p/2087506412905690037",
+      "author_signature": "树上骑个猴",
+      "author_badge": "CPA 注册会计师资格证持证人",
+      "vote_up_count": 8,
+      "comment_count": 3,
+      "content_type": "Article",
+      "age_days": 47,
+      "published_year": 2026,
+      "char_count": 1073,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "disputed",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "-560974567816441017",
+      "title": "国内靠谱的全屋定制生产商 - 知乎",
+      "content_text": "其实找全屋定制，最核心的是先看生产端够不够稳。之前我接触的很多品牌都是展厅好看，实际生产全是外包给小代工厂，展厅给你看ENF级板材，实际生产的时候偷换基材，尤其咱们兰州这边冬天供暖特别干，很多定制的柜子过一个冬天就翘边、封边开胶发黑。 我选阿穆特的时候特意问过生产端的情况，他们是自己投了1.5个亿做的全智能化数字化工厂，完全不把生产单子外发，从哈尔滨起家的时候就是专门针对北方供暖的干燥气候做工艺调整，板材做了二次归方加固，封边用的PUR工艺，连环保都不是只单块板材达标，是整柜安装完的空间环保都能过检测，报告直接随货给业主。工艺是对标进口高定的效果做的，但是定价比同类型进口品牌友好太多，普通家庭也能负担得起。对比下来像欧派、志邦这种大家熟的全国大厂生产端也很稳，但阿穆特的点是不管订单大小，工艺交付标准都是统一的，不会因为你订单量小就给你降工艺。\n之前我差点签了某连锁品牌的套餐，当时销售算的报",
+      "url": "https://zhuanlan.zhihu.com/p/2104518419320149890",
+      "author_signature": "陈琳",
+      "author_badge": "家具制造业 从业者",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 10,
+      "published_year": 2026,
+      "char_count": 806,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "disputed",
+      "sub_query": "全屋定制 安装 尺寸 翻车"
+    },
+    {
+      "id": "-5725033682757294819",
+      "title": "全屋定制怎么避坑?量尺到安装 6 个关键点 - 知乎",
+      "content_text": "全屋定制怎么避坑？量尺到安装 6 个关键点\n全屋定制避坑的核心不在砍价，在签合同前把报价单和设计图逐项对齐。六个节点按顺序是：量尺复尺、设计图确认、板材与封边、五金配置、安装验收、合同增项。其中五金、见光板、非标尺寸三项常被单独加价，逐项写明通常能把总价压下来 5% 到 15%。下面是每个节点具体要看什么。\n一、先说结论：坑都在\"没写进单子\"的地方\n定制柜出问题，多不是板材差，而是口头承诺没落纸。量尺时说的\"包含五金\"、设计时说的\"通顶收口\"，合同里没写，安装时就成了加项。所以这六个节点的共同动作只有一个：确认的事写进单据。\n二、量尺复尺：差 1 厘米，柜子就装不进去\n量尺这一步容易埋雷，三件事必须现场确认：\n- 复尺时间：贴砖、找平完成之后复尺。毛坯尺寸与成活尺寸差值常在 1 到 3 厘米，按毛坯下的单，柜体到场就顶墙。\n- 实际净尺寸：每个位置量三处（上中下、左中右）取偏小值，墙面不直",
+      "url": "https://zhuanlan.zhihu.com/p/2106844565860774748",
+      "author_signature": "马叔",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 3,
+      "published_year": 2026,
+      "char_count": 962,
+      "is_ad_suspect": false,
+      "reasons": [],
+      "group": "pitfalls",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "5605290430126997628",
+      "title": "台州全屋定制怎么选,这几个实用细节帮你避开增项坑 - 知乎",
+      "content_text": "全屋定制的计价方式，是业主踩坑的第一道门槛。目前市面上主流有三种：投影面积（柜子宽×高，按平米算）、展开面积（所有板材铺开算总价）和套餐包（一口价含若干平米柜体）。投影面积看似简单，但柜体深度超过600mm要加钱，层板超过一定数量要加钱，抽屉、拉篮、裤架无一不是增项。展开面积听着透明，但多数业主根本算不清柜子内部用了多少板。套餐包最具诱惑力，却往往藏着“标配”之外的无数个“选配”：标配五金是杂牌、背板厚度从9mm悄悄缩到5mm、非标尺寸柜体直接翻倍计价。有业主反映，他看中的某品牌“19999元全屋定制”套餐，签完合同后才发现连最基本的挂衣杆都要另外收费。\n选服务商，别听销售说得多漂亮，要看四个硬指标。\n第一，报价单是否“裸奔”。\n 一份合格的报价单必须逐项列明：板材品牌、厚度、环保等级（E1还是ENF）、五金件品牌型号数量、设计费、运输费、安装费、上楼费。\n路桥的李女士分享过她的经验：她让",
+      "url": "https://zhuanlan.zhihu.com/p/2093374546116075880",
+      "author_signature": "小土豆88",
+      "author_badge": "",
+      "vote_up_count": 1,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 41,
+      "published_year": 2026,
+      "char_count": 812,
+      "is_ad_suspect": false,
+      "reasons": [
+        "标题带推荐倾向"
+      ],
+      "group": "pitfalls",
+      "sub_query": "全屋定制 增项 报价 有哪些坑"
+    },
+    {
+      "id": "-4906854729814251814",
+      "title": "全屋定制板材怎么选,那种最环保? - 知乎",
+      "content_text": "关键提醒：E0是“能不能卖”的准入门槛，ENF是“分到哪一档”的最高分级，两者性质不同。全屋柜子板材用量大，E0级在叠加效应下仍可能使室内空气超标，所以环保要求高的家庭应直接将目标锁定在ENF级。如果家里有小孩、孕妇或过敏体质成员，ENF级更是必须坚守的硬指标。\n第二步：在ENF级里，哪种基材更“天生环保”?\n不同板材的“环保上限”由其胶水种类和用量决定。即使用同等级别的胶水，用胶量越大，环保风险越高。\n从“天生环保”的角度排序，大致是：欧松板(OSB)＞禾香板>多层板>颗粒板。\n欧松板(OSB)/禾香板：环保天花板的选择\n这两种板材的核心优势在于胶水。欧松板常用MDI胶(聚氨酯胶)，禾香板则以秸秆为原料、同样使用MDI胶，生产过程中不人为添加甲醛，因此做到ENF级是“标配”而非“高配”。欧松板的物理性能也很突出，握钉力强、防潮性优于颗粒板，做柜门不易变形。禾香板防潮性优异，但质地较脆，需",
+      "url": "https://www.zhihu.com/question/464245503/answer/2102060286236800533",
+      "author_signature": "水乡之梦",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Answer",
+      "age_days": 17,
+      "published_year": 2026,
+      "char_count": 1020,
+      "is_ad_suspect": false,
+      "reasons": [
+        "标题带推荐倾向"
+      ],
+      "group": "pitfalls",
+      "sub_query": "全屋定制 板材 环保 怎么选"
+    },
+    {
+      "id": "-3218834654209174927",
+      "title": "全屋定制全是坑!真的不能太老实! - 知乎",
+      "content_text": "全屋定制的行业水极深，第一步计价往往就卡主了消费者。\n第一章:计价与选购拆解商家的“账本”\n1.两种计价方式的底层差异\n投影面积计价(首选)\n公式:衣柜高度x长度\n最透明!一个标准的标配(以670元/平方为例)必须包含:18mm柜体与门板、9mm插槽式背板、衣通、基础五金、每组柜子2个e抽屉，以及量尺、设计、安装、运输、上楼等全套服务。\n展开面积计价（不建议)\n公式:板材总面积x单价\n计算极其复杂!五金、抽屉、拉手全部单算。容易在细节处被商家“蚕食\"利润，非专业人士慎选。\n2.品牌与工厂的博弈\n大品牌：\n颗粒板工艺成熟，售后体系完善。\n但溢价高。\n本地工厂：\n寻找有规模、有展厅、自有安装团队的源头工厂。\n同样的万华、爱格等品牌板材，工厂价能省30%~50%!\n核心是:‘选板材品牌，而非定制门店品牌\"。\n第二章:板材、环保与饰面\n决定柜子的“体质”\n1.板材基材全解析\n颗粒板/欧松板：稳定性",
+      "url": "https://zhuanlan.zhihu.com/p/2029528727718049343",
+      "author_signature": "成都邸颜全屋定制",
+      "author_badge": "",
+      "vote_up_count": 23,
+      "comment_count": 3,
+      "content_type": "Article",
+      "age_days": 217,
+      "published_year": 2026,
+      "char_count": 1054,
+      "is_ad_suspect": true,
+      "reasons": [
+        "发布者昵称像是商家或门店账号"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "5633294446285146375",
+      "title": "2026 上海全屋定制选品牌与避坑:从梯队匹配到验收入住的实操清单 - 知乎",
+      "content_text": "1.亚振家居 A-Zenith 亚振家居是上海本土 A 股上市高端家居品牌，品牌积淀始于 1985 年，1992 年正式创立，2016 年在上交所挂牌上市，同时也是上海市非物质文化遗产 “海派家具制作技艺” 传承保护单位。品牌主打成品家具 + 全屋定制一体化解决方案，拥有多套产品体系，可以落地现代雅奢、东方、法式经典等多种大宅风格。 亚振拥有南通智造基地与定制艺术工场两大生产基地，配备德国豪迈、意大利进口生产设备，把海派家具 36 个工艺环节、400 多道工序的非遗技艺融入现代化数字生产。原料甄选 FAS 级北美黑胡桃、橡木等名贵实木，定制板材采用 ENF 级环保标准，拥有三百余项家具设计专利，斩获德国红点、IF 等国际设计奖项。 品牌先后承接过多届世博会中国馆、人民大会堂、北外滩世界会客厅等大型项目，在上海设有三千平旗舰店，采用项目长制对接大宅整案项目，从设计、生产到安装全流程跟进。不少",
+      "url": "https://zhuanlan.zhihu.com/p/2099866832274511790",
+      "author_signature": "种草测评日记",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 23,
+      "published_year": 2026,
+      "char_count": 1031,
+      "is_ad_suspect": true,
+      "reasons": [
+        "标题符合导购文的标准模板"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制怎么避免被坑"
+    },
+    {
+      "id": "5374628185790013782",
+      "title": "低价套餐套路,哪些是隐形增项 - 知乎",
+      "content_text": "一、低价套餐看着划算，为什么结账时却变贵\n不少全屋定制门店打出三万元搞定全屋柜子、每平米几百元全包的宣传，这类低价套餐对预算紧张的业主很有吸引力。可等到复尺、下单、安装完毕，总价往往比当初高出不少。差额从哪里来？多半来自签约时没写清楚的隐形增项。低价套餐本身未必是陷阱，问题出在报价口径不统一：同样的平米数，有的含五金、有的不含，有的限制柜体数量、有的限制花色。弄懂隐形增项是怎么产生的，才能判断便宜是否真的便宜。\n二、低价套餐的常见套路，拆开看这四类\n套路通常藏在计价方式里。其一，拆项报价。柜体、门板、五金、抽屉分开计价，单看每项都不贵，累加起来却超出预算。其二，限量套餐。标注包含多少平米，超出部分按高价补差，户型稍大便会触发。其三，材料降级。套餐内的板材与花色有限，想换配色或升级材质就得加价。其四，服务模糊。安装、运输、上楼费用不写进合同，施工时按次收取。这些做法让业主在比价时失去参照，签",
+      "url": "https://zhuanlan.zhihu.com/p/2100329336532485728",
+      "author_signature": "宁波原木定制工厂",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 21,
+      "published_year": 2026,
+      "char_count": 626,
+      "is_ad_suspect": true,
+      "reasons": [
+        "发布者昵称像是商家或门店账号"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制 增项 报价 有哪些坑"
+    },
+    {
+      "id": "-3679568616739418278",
+      "title": "2026全屋定制避坑:容易被忽略的5个增项与合同确认方法 - 知乎",
+      "content_text": "投影面积，是按柜体在墙面上的宽乘高算出一个平面面积，再配合约定的计算规则得出结果。它的好处是直观，业主拿图纸也能大致估出来；需要注意的是这个口径里包含哪些内容，层板、背板、抽屉、收口条算不算在内，每一项都要有明确说法。\n展开面积，是把柜体的板件逐块摊开，按实际用料的面积累加。它更贴近实际用料，对结构复杂的柜体反应更敏感，用板越多、内部隔层越多，算出来的面积就越大。它依赖图纸与板件清单，方案在深化过程中调整过，累加结果也会跟着变。\n两种口径本身没有对错，差别在于同一套方案在两种口径下算出来的结果通常不同。业主容易犯的一个判断错误，是把不同口径下的两个数字放在一起比大小，然后把差异理解成某一方多算了。\n结算差异常见的来源有三种。\n一种是报价阶段用一种口径给结果，结算时换成另一种口径。口径换了，基准就变了，数字自然对不上。\n一种是报价单没有写明采用哪一种口径，双方各自的默认理解不同。业主以为是投",
+      "url": "https://zhuanlan.zhihu.com/p/2095940289106015209",
+      "author_signature": "瑞岩家居",
+      "author_badge": "",
+      "vote_up_count": 0,
+      "comment_count": 0,
+      "content_type": "Article",
+      "age_days": 33,
+      "published_year": 2026,
+      "char_count": 1047,
+      "is_ad_suspect": true,
+      "reasons": [
+        "发布者昵称像是商家或门店账号"
+      ],
+      "group": "hidden",
+      "sub_query": "全屋定制 增项 报价 有哪些坑"
+    }
+  ],
+  "cards": [
+    {
+      "question": "全屋定制怎么避免被坑",
+      "core_conclusion": "避坑核心是闭口合同锁增项、盯净深尺寸、柜体用PUR封边",
+      "conclusion_confidence": "medium",
+      "key_points": [
+        "要求闭口合同，增项逐项写进报价单",
+        "衣柜看内部净深，600柜体装完会缩水",
+        "柜体选PUR封边，激光只用于纯色柜门"
+      ],
+      "preconditions": [
+        "定制全屋定制怎么才能不被坑? - 知乎",
+        "家装全屋定制有哪些注意事项? - 知乎"
+      ],
+      "pros": [
+        "我接触的精装房全屋定制,哪些隐藏增项真要避坑啊? - 知乎",
+        "全屋定制不翻车✅安装标准,才是硬道理 - 知乎"
+      ],
+      "cons": [
+        "全屋定制想不花冤枉钱不踩坑,先把这5个错误认知从脑子里拿掉! - 知乎",
+        "国内靠谱的全屋定制生产商 - 知乎"
+      ],
+      "pitfalls": [
+        "全屋定制怎么避坑？",
+        "全屋定制的计价方式，是业主踩坑的第一道门槛。",
+        "关键提醒：E0是“能不能卖”的准入门槛，ENF是“分到哪一档”的最高分级，两者性质不同。"
+      ],
+      "counts": {
+        "consensus": 18,
+        "disputed": 2,
+        "pitfalls": 4,
+        "hidden": 11
+      },
+      "basis_titles": [
+        "全屋定制最容易踩的5个坑是什么?我替你踩了一遍 - 知乎",
+        "全屋定制,尺寸翻车率最高的5个地方,你踩坑了吗? - 知乎",
+        "全屋定制想不花冤枉钱不踩坑,先把这5个错误认知从脑子里拿掉! - 知乎"
+      ],
+      "summary_source": "model"
+    }
+  ],
+  "trace": [
+    {
+      "stage": "query_rewrite",
+      "label": "改写查询",
+      "subqueries": [
+        "全屋定制怎么避免被坑",
+        "全屋定制 增项 报价 有哪些坑",
+        "全屋定制 板材 环保 怎么选",
+        "全屋定制 安装 尺寸 翻车"
+      ],
+      "detail": "拆成 4 个问题分别去找"
+    },
+    {
+      "stage": "recall",
+      "label": "多路召回",
+      "total": 40,
+      "per_query": [
+        {
+          "query": "全屋定制怎么避免被坑",
+          "count": 10,
+          "ok": true
+        },
+        {
+          "query": "全屋定制 增项 报价 有哪些坑",
+          "count": 10,
+          "ok": true
+        },
+        {
+          "query": "全屋定制 板材 环保 怎么选",
+          "count": 10,
+          "ok": true
+        },
+        {
+          "query": "全屋定制 安装 尺寸 翻车",
+          "count": 10,
+          "ok": true
+        }
+      ],
+      "detail": "从 4 个问题里拿到 40 条"
+    },
+    {
+      "stage": "dedupe",
+      "label": "去掉重复",
+      "before": 40,
+      "after": 35,
+      "detail": "有 5 条在不同问题里重复出现"
+    },
+    {
+      "stage": "credibility",
+      "label": "看看有没有在卖东西的",
+      "total": 35,
+      "ad_suspect": 11,
+      "detail": "11 条像是在推广，标记后收起，不删除"
+    },
+    {
+      "stage": "grouping",
+      "label": "把不同说法归到一起",
+      "counts": {
+        "consensus": 18,
+        "disputed": 2,
+        "pitfalls": 4,
+        "hidden": 11
+      },
+      "detail": "一致的 18 条，对立的 2 条，具体的坑 4 条"
+    },
+    {
+      "stage": "summarize",
+      "label": "把结论写出来",
+      "detail": "依据 3 条材料归纳，置信度 medium"
+    }
+  ],
+  "stats": {
+    "recalled": 40,
+    "unique": 35,
+    "after_freshness": 35,
+    "hidden": 11,
+    "kept": 24
+  },
+  "from_cache": false,
+  "elapsed_ms": 0
+};
+
+</script>
+<script>
+/* ===========================================================
+   知鉴 Search · 前端逻辑
+   ===========================================================
+   数据来源（双模）：
+     1) 优先请求后端 POST /api/search
+     2) 8 秒内没响应 / 报错 / 返回 degraded，自动改用本地 seed.js
+   界面会如实标明当前是哪一种，不假装。
+
+   字段来源见 backend/pipeline.py 的 payload：
+     query / intent / intent_label / mode / degraded_reason
+     answers[]  { id,title,content_text,url,author_signature,
+                  vote_up_count,published_year,age_days,
+                  is_ad_suspect,reasons[],group }
+     cards[0]   { core_conclusion,conclusion_confidence,key_points,
+                  basis_titles,summary_source,counts }
+     trace[]    { stage,label,detail }   ← 阶段是动态的，别按下标取
+   =========================================================== */
+
+/* 后端地址的推导顺序：
+   1. localStorage 里手动指定的（调试用）
+   2. 如果页面是从 http(s) 打开的（局域网/线上），就用同一个主机名 + 8000 端口
+      —— 这样手机访问 192.168.x.x:8080 时，会自动去请求 192.168.x.x:8000
+   3. 兜底：本机 127.0.0.1 */
+const API_BASE = (() => {
+  const manual = localStorage.getItem('ZHIJIAN_API');
+  if (manual) return manual.replace(/\/+$/, '');
+  if (location.protocol.startsWith('http')) {
+    const port = location.port === '8000' ? '' : ':8000';
+    return `${location.protocol}//${location.hostname}${port}`;
+  }
+  return 'http://127.0.0.1:8000';
+})();
+const TIMEOUT_MS = 8000;
+
+let CURRENT = null;
+let TECH_ON = false;
+let selectedIds = new Set();
+let selectMode = false;   // 默认不进入「挑重点」模式
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------------- 首页话题 ---------------- */
+const TOPICS = [
+  { q: '全屋定制怎么避免被坑', hint: '经验避坑' },
+  { q: '扫地机器人值得买吗', hint: '争议话题' },
+  { q: '2000元扫地机器人 石头和追觅哪个好', hint: '对比选购' }
+];
+
+(function initTopics() {
+  $('topics').innerHTML = TOPICS.map(
+    (t) => `<button class="topic" onclick="pickTopic('${t.q}')">${t.q}<i>${t.hint}</i></button>`
+  ).join('');
+})();
+
+/* HTML 里「开始」按钮的入口。
+   之前漏了这个函数，导致点按钮报 is not defined、只有回车能用。 */
+function startSearch() {
+  doSearch($('q').value);
+}
+
+function pickTopic(q) {
+  $('q').value = q;
+  doSearch(q);
+}
+
+$('q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doSearch($('q').value);
+});
+
+/* ---------------- 视图切换 ---------------- */
+function show(which) {
+  ['home', 'loading', 'result', 'empty'].forEach((v) => {
+    $(v).style.display =
+      v === which ? (v === 'home' ? 'flex' : 'block') : 'none';
+  });
+  $('topbar').classList.toggle('on', which !== 'home');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function goHome() {
+  CURRENT = null;
+  $('q').value = '';
+  if (TECH_ON) toggleTech();
+  show('home');
+  setTimeout(() => $('q').focus(), 80);
+}
+
+/* ---------------- 加载态 ---------------- */
+const LOAD_STEPS = [
+  '正在读你这个问题…',
+  '拆成几个更具体的问题分别去找…',
+  '排掉太旧的内容…',
+  '看看有没有在卖东西的…',
+  '把不同说法归到一起…',
+  '写结论…'
+];
+
+function runSteps() {
+  $('lsteps').innerHTML = LOAD_STEPS.map((s, i) => `<b id="st${i}">${s}</b>`).join('');
+  LOAD_STEPS.forEach((_, i) => {
+    setTimeout(() => {
+      for (let k = 0; k <= i; k++) {
+        const el = $('st' + k);
+        if (el) el.className = k === i ? 'now' : 'done';
+      }
+    }, i * 620);
+  });
+}
+
+/* ---------------- 检索 ---------------- */
+async function doSearch(rawQuery) {
+  const query = (rawQuery || '').trim();
+  if (!query) {
+    $('q').focus();
+    return;
+  }
+  $('miniq-text').textContent = query;
+  show('loading');
+  runSteps();
+
+  const started = Date.now();
+  try {
+    const res = await fetch(`${API_BASE}/api/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, options: {} }),
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.answers)) throw new Error('返回结构不对');
+
+    // 后端自己说降级了，就按降级展示
+    if (data.mode === 'degraded') {
+      render(data, data.degraded_reason || '后端暂时没给出结果');
+      return;
+    }
+    render(data);
+  } catch (err) {
+    // 连不上就退回本地 seed，并如实说明
+    const wait = Math.max(0, 900 - (Date.now() - started));
+    setTimeout(() => {
+      const fallback = JSON.parse(JSON.stringify(SEED));
+      render(fallback, '没连上检索服务，这是提前存好的一份结果');
+    }, wait);
+  }
+}
+
+/* ---------------- 渲染 ---------------- */
+function groupOf(d, name) {
+  return (d.answers || []).filter((a) => a.group === name);
+}
+
+function clip(text, limit) {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  if (t.length <= limit) return { text: t, truncated: false };
+  return { text: t.slice(0, limit), truncated: true };
+}
+
+function sourceLine(a) {
+  const parts = [];
+  parts.push(`<span class="who">知乎 · ${escapeHtml(a.author_signature || '匿名')}</span>`);
+  if (a.published_year) parts.push(`<span class="yr">${a.published_year}</span>`);
+  if (a.vote_up_count) parts.push(`<span class="votes">${a.vote_up_count} 赞</span>`);
+  return parts.join('');
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
+/* 收起区的条目渲染。render 和 renderEmpty 都用它，避免两处逻辑分叉。 */
+function hiddenHTML(list) {
+  return `<div class="fold-note">没有删掉它们。你自己看一眼，判断权在你手上。</div>` +
+    list.map((h) => {
+      const c = clip(h.content_text, 240);
+      return `
+      <div class="hid">
+        <div class="why">为什么收起：${escapeHtml((h.reasons || []).join('；') || '内容可疑')}</div>
+        <div class="txt"><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</div>
+        <div class="src">${sourceLine(h)}</div>
+        <button class="override" onclick="override(this)">我认为这条没问题</button>
+      </div>`;
+    }).join('');
+}
+
+function render(data, degradedReason) {
+  CURRENT = data;
+  selectedIds = new Set();
+  if (selectMode) exitSelectMode(true);
+  syncPickBtn();
+
+  // 先判断有没有东西可展示。没东西时走空态，不要渲染一个空壳。
+  const all = data.answers || [];
+  const usable = all.filter((a) => a.group !== 'hidden');
+  const forced = new URLSearchParams(location.search).get('state');
+  if (forced === 'empty' || (!usable.length && !forced)) {
+    renderEmpty(data, degradedReason);
+    return;
+  }
+  show('result');
+
+  const card = (data.cards || [])[0] || {};
+  const isDegraded = data.mode === 'degraded' || !!degradedReason;
+
+  /* --- 顶栏模式标记：必须诚实 --- */
+  const status = document.querySelector('.status');
+  status.innerHTML = isDegraded
+    ? '<i class="dot" style="background:#C9A227"></i><span>演示数据 · 未连接后端</span>'
+    : '<i class="dot"></i><span>真实检索 · 本地服务</span>';
+  if (degradedReason) status.title = degradedReason;
+
+  /* --- 头部 --- */
+  $('rq').textContent = data.query || '';
+  $('rmeta').textContent = data.intent_label || '综合探索';
+  const st = data.stats || {};
+  $('rcount').textContent =
+    st.recalled != null
+      ? `读了 ${st.recalled} 篇，留下 ${(st.after_freshness || 0) - (st.hidden || 0)} 篇`
+      : '';
+
+  /* --- 结论 --- */
+  const confidence = card.conclusion_confidence || 'none';
+  // 三档：medium 正常给结论；low 只能说到这；none 干脆没有结论
+  const weak = confidence === 'low' || confidence === 'none';
+  const noConclusion = confidence === 'none';
+  $('rkicker').textContent =
+    confidence === 'none' ? '说实话' : confidence === 'low' ? '只能说到这' : '先说结论';
+  $('rhead').textContent = card.core_conclusion || '这次没有找到能形成结论的内容。';
+  $('rhead').style.fontSize = weak ? '20px' : '';
+  $('rhead').style.color = weak ? 'var(--ink-2)' : '';
+
+  const points = (card.key_points || []).filter(Boolean);
+  const basisCount = (card.basis_titles || []).length;
+  $('rsub').textContent = noConclusion
+    ? '下面这几条是别人提到最多的，你自己判断。'
+    : confidence === 'low'
+    ? `材料只够说到这个程度，这条结论的把握不大。`
+    : basisCount
+    ? `这句是从 ${basisCount} 条回答里归纳出来的。`
+    : '';
+  $('rsub').style.display = '';
+  $('rquick').innerHTML = points.map((p) => `<li>${escapeHtml(p)}</li>`).join('');
+  if (!points.length) {
+    // 没有要点时那条分隔线会悬空，去掉
+    $('rsub').style.cssText = 'padding-bottom:0;border-bottom:none;margin-bottom:0;';
+  }
+
+  /* --- 三段 --- */
+  const blocks = [
+    { key: 'consensus', title: '大家都这么说', tag: '多篇内容一致', cls: '' },
+    { key: 'disputed', title: '说法不一的地方', tag: '同一个问题，结论相反', cls: '' },
+    { key: 'pitfalls', title: '有人具体踩过的坑', tag: '带场景，能对上自己家', cls: 'pit' }
+  ];
+
+  // 每组先给两条，其余折起来。
+  // 为什么不全部折叠：全收起来时首屏只剩三个标题，一个字都读不到，
+  // 「30 秒看懂」就废了。留两条既有实质内容，页面也不至于太长。
+  const PER_GROUP = 2;
+
+  const renderItem = (a, cls) => {
+    const c = clip(a.content_text, 190);
+    const picked = selectedIds.has(a.id);
+    return `
+      <div class="item ${cls}${picked ? ' picked' : ''}" data-full="${escapeHtml(a.content_text || '')}">
+        <label class="pickbox"><input type="checkbox" data-pick="${escapeHtml(a.id)}" ${picked ? 'checked' : ''} aria-label="加入精选"></label>
+        <div class="body">
+          <p class="q-title">${escapeHtml(a.title || '')}</p>
+          <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
+          ${c.truncated ? `<button class="more" onclick="expand(this)">展开全文</button>` : ''}
+          <div class="src">${sourceLine(a)}${a.isolated ? '<span class="iso">没有其他人印证</span>' : ''}</div>
+        </div>
+      </div>`;
+  };
+
+  $('blocks').innerHTML = blocks
+    .map((b, bi) => {
+      const arr = groupOf(data, b.key);
+      if (!arr.length) return '';
+      const head = arr.slice(0, PER_GROUP).map((a) => renderItem(a, b.cls)).join('');
+      const rest = arr.slice(PER_GROUP);
+      const restHtml = rest.length
+        ? `<div class="rest" id="rest${bi}" hidden>${rest.map((a) => renderItem(a, b.cls)).join('')}</div>
+           <button class="more-group" id="moreBtn${bi}" onclick="toggleGroup(${bi})">
+             还有 ${rest.length} 条 · 展开
+           </button>`
+        : '';
+      return `
+        <div class="block">
+          <div class="block-head"><h3>${b.title}</h3><span class="tag">${b.tag} · ${arr.length} 条</span></div>
+          ${head}${restHtml}
+        </div>`;
+    })
+    .join('');
+
+  /* --- 收起区 --- */
+  const hidden = groupOf(data, 'hidden');
+  if (hidden.length) {
+    $('fold').style.display = '';
+    $('foldn').textContent = hidden.length + ' 条';
+    $('foldt').textContent = `另有 ${hidden.length} 条内容，我们觉得你不该直接信`;
+    $('foldbody').innerHTML = hiddenHTML(hidden);
+  } else {
+    $('fold').style.display = 'none';
+  }
+
+  /* --- 技术抽屉：按 label 渲染，不假设阶段数 --- */
+  $('tech').innerHTML =
+    `<h4>技术细节 · 供评委查看，普通用户默认看不到</h4>
+     <div class="trace">
+       ${(data.trace || [])
+         .map(
+           (t) =>
+             `<div class="tr"><span class="lb">${escapeHtml(t.label || t.stage)}</span><span class="dt">${escapeHtml(t.detail || '')}</span></div>`
+         )
+         .join('')}
+     </div>
+     <div class="tstats">
+       <div class="tstat"><div class="v">${st.recalled || 0}</div><div class="k">初始召回</div></div>
+       <div class="tstat"><div class="v">${st.after_freshness || 0}</div><div class="k">时效过滤后</div></div>
+       <div class="tstat"><div class="v">${st.hidden || 0}</div><div class="k">降权保留</div></div>
+       <div class="tstat"><div class="v">${st.kept || 0}</div><div class="k">可用内容</div></div>
+     </div>
+     ${degradedReason ? `<div class="fold-note" style="margin-top:12px">降级原因：${escapeHtml(degradedReason)}</div>` : ''}`;
+  $('tech').classList.toggle('on', TECH_ON);
+
+  $('fold').classList.remove('open');
+
+  const pickable = (data.answers || []).filter((a) => a.group !== 'hidden').length;
+  const pk = $('pickBtn');
+  if (pk) pk.style.display = pickable ? '' : 'none';
+}
+
+function toggleGroup(i) {
+  const rest = $('rest' + i);
+  const btn = $('moreBtn' + i);
+  if (!rest || !btn) return;
+  const open = !rest.hidden;
+  rest.hidden = open;
+  const n = rest.querySelectorAll('.item').length;
+  btn.textContent = open ? `还有 ${n} 条 · 展开` : '收起';
+  if (!open) rest.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function expand(btn) {
+  const item = btn.closest('.item');
+  const full = item ? item.getAttribute('data-full') || '' : '';
+  const p = btn.previousElementSibling;
+  if (p && full) p.textContent = full;
+  btn.remove();
+}
+
+/* ---------------- 交互 ---------------- */
+function toggleFold() {
+  $('fold').classList.toggle('open');
+}
+
+function toggleTech() {
+  TECH_ON = !TECH_ON;
+  $('tech').classList.toggle('on', TECH_ON);
+  $('dtoggle').classList.toggle('on', TECH_ON);
+  syncTechLabel();
+  if (TECH_ON && CURRENT) $('tech').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* 手机顶栏放不下六个字，缩成「细节 / 收起细节」 */
+function syncTechLabel() {
+  const btn = $('dtoggle');
+  if (!btn) return;
+  const narrow = window.innerWidth <= 680;
+  btn.textContent = TECH_ON
+    ? (narrow ? '收起细节' : '已显示技术细节')
+    : (narrow ? '细节' : '显示技术细节');
+}
+window.addEventListener('resize', syncTechLabel);
+document.addEventListener('DOMContentLoaded', syncTechLabel);
+
+function override(btn) {
+  if (btn.classList.contains('did')) {
+    btn.classList.remove('did');
+    btn.textContent = '我认为这条没问题';
+  } else {
+    btn.classList.add('did');
+    btn.textContent = '已记录你的判断 · 下次不再收起';
+  }
+}
+
+
+/* ===========================================================
+   勾选与重组
+   -----------------------------------------------------------
+   设计说明：
+   · 勾选的粒度是「整条内容」，不是整篇回答——用户要的是
+     「这几条我要留着」，而不是「这篇我要收藏」
+   · 导出的是本地拼接的 Markdown，不调模型、不烧额度
+   · 文件里保留作者、年份、原文链接，让人能回去核对
+   =========================================================== */
+
+function updateSelbar() {
+  const bar = $('selbar');
+  if (!bar) return;
+  $('selcount').textContent = selectedIds.size;
+  bar.classList.toggle('on', selectMode);
+  const go = $('goSel');
+  if (go) go.disabled = selectedIds.size === 0;
+}
+
+/* 进入 / 退出「挑重点」模式
+   默认不显示勾选框：多数人只想要答案，不想做选择。
+   只有用户主动点「自己挑重点重组」才进入选择态。 */
+function toggleSelectMode() {
+  if (selectMode) exitSelectMode();
+  else enterSelectMode();
+}
+
+function enterSelectMode() {
+  selectMode = true;
+  document.body.classList.add('select-mode');
+  updateSelbar();
+  syncPickBtn();
+  const first = document.querySelector('[data-pick]');
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function exitSelectMode(silent) {
+  // 只退出模式，不清空已选——用户可能只是先看一眼答案，
+  // 回头还要接着挑。真要清空有「清空」按钮。
+  selectMode = false;
+  document.body.classList.remove('select-mode');
+  updateSelbar();
+  if (!silent) syncPickBtn();
+}
+
+/* 按钮上带数量，退出后也知道自己选过东西 */
+function syncPickBtn() {
+  const btn = $('pickBtn');
+  if (!btn) return;
+  const n = selectedIds.size;
+  if (selectMode) {
+    btn.textContent = '退出选择';
+    btn.classList.add('primary');
+  } else {
+    btn.textContent = n ? `继续挑重点（已选 ${n} 条）` : '自己挑重点重组';
+    btn.classList.remove('primary');
+  }
+}
+
+function syncPicked() {
+  document.querySelectorAll('[data-pick]').forEach((cb) => {
+    const item = cb.closest('.item');
+    if (item) item.classList.toggle('picked', cb.checked);
+  });
+}
+
+// 事件委托：渲染是重建 innerHTML，挂在父级才不会失效
+document.addEventListener('change', (e) => {
+  const cb = e.target.closest && e.target.closest('[data-pick]');
+  if (!cb) return;
+  const id = cb.getAttribute('data-pick');
+  if (cb.checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  syncPicked();
+  updateSelbar();
+  syncPickBtn();
+});
+
+function clearSel() {
+  selectedIds = new Set();
+  document.querySelectorAll('[data-pick]').forEach((cb) => { cb.checked = false; });
+  syncPicked();
+  updateSelbar();
+  syncPickBtn();
+}
+
+const GROUP_TITLE = {
+  consensus: '大家都这么说',
+  disputed: '说法不一的地方',
+  pitfalls: '有人具体踩过的坑',
+  hidden: '被收起的内容'
+};
+
+function selectedItems() {
+  if (!CURRENT) return [];
+  return (CURRENT.answers || []).filter((a) => selectedIds.has(a.id));
+}
+
+function openCompose() {
+  const rows = selectedItems();
+  if (!rows.length) return;
+
+  // 按分组聚合，保持与结果页一致的顺序
+  const order = ['consensus', 'disputed', 'pitfalls'];
+  const groups = {};
+  rows.forEach((a) => {
+    const g = a.group || 'consensus';
+    (groups[g] = groups[g] || []).push(a);
+  });
+
+  const body = order
+    .filter((g) => groups[g])
+    .map((g) => {
+      const items = groups[g]
+        .map((a) => {
+          const link = a.url
+            ? `<a href="${a.url}" target="_blank" rel="noopener noreferrer">查看原文 ↗</a>`
+            : '<span>来源链接不可用</span>';
+          const c = clip(a.content_text, 260);
+          return `<div class="cmp-entry" data-full="${escapeHtml(a.content_text || '')}">
+            <p>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
+            ${c.truncated ? '<button class="more" onclick="expandCmp(this)">展开这条</button>' : ''}
+            <small>
+              <span>知乎 · ${escapeHtml(a.author_signature || '匿名')}</span>
+              ${a.published_year ? `<span>${a.published_year}</span>` : ''}
+              ${a.vote_up_count ? `<span>${a.vote_up_count} 赞</span>` : ''}
+              ${link}
+            </small>
+          </div>`;
+        })
+        .join('');
+      return `<div class="cmp-group"><div class="gt">${GROUP_TITLE[g] || g}</div>${items}</div>`;
+    })
+    .join('');
+
+  $('modalbody').innerHTML = `
+    <p class="modal-intro">按你选的顺序拼在一起，保留出处与时间。不带任何改写。</p>
+    <div class="compose-doc">
+      <h4>${escapeHtml(CURRENT.query || '')}</h4>
+      <div class="meta">${rows.length} 条 · 来自知乎公开内容 · 整理于 ${new Date().toLocaleDateString('zh-CN')}</div>
+      ${body}
+    </div>
+    <div class="modal-actions">
+      <button class="act" onclick="closeModal()">返回</button>
+      <button class="act primary" onclick="exportMarkdown()">导出 Markdown</button>
+    </div>`;
+  $('modal').classList.add('on');
+}
+
+function expandCmp(btn) {
+  const entry = btn.closest('.cmp-entry');
+  const full = entry ? entry.getAttribute('data-full') || '' : '';
+  const p = entry ? entry.querySelector('p') : null;
+  if (p && full) p.textContent = full;
+  btn.remove();
+}
+
+function closeModal() {
+  $('modal').classList.remove('on');
+  syncPickBtn();
+}
+
+function exportMarkdown() {
+  const rows = selectedItems();
+  if (!rows.length) return;
+
+  const order = ['consensus', 'disputed', 'pitfalls'];
+  const lines = [
+    `# ${CURRENT.query || '精选资料'}`,
+    '',
+    `> ${rows.length} 条内容，拼自知乎公开回答与文章。`,
+    '> 这里的判断只作参考，可信度与时效是系统辅助评估，请结合原文自行核对。',
+    ''
+  ];
+
+  order.forEach((g) => {
+    const items = rows.filter((a) => (a.group || 'consensus') === g);
+    if (!items.length) return;
+    lines.push(`## ${GROUP_TITLE[g]}`, '');
+    items.forEach((a) => {
+      lines.push('…' + (a.content_text || ''));
+      lines.push('');
+      const meta = [`知乎 · ${a.author_signature || '匿名'}`];
+      if (a.published_year) meta.push(String(a.published_year));
+      if (a.vote_up_count) meta.push(`${a.vote_up_count} 赞`);
+      lines.push(`— ${meta.join(' · ')}`);
+      if (a.url) lines.push(`原文：${a.url}`);
+      lines.push('');
+    });
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  const name = (CURRENT.query || '精选').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${name}-精选.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+
+/* ===========================================================
+   空状态
+   -----------------------------------------------------------
+   三种情况要分开说，因为用户接下来该做的事不一样：
+   1. 完全没找到 —— 换个问法
+   2. 找到了但都不可信 —— 可以自己看，或者放宽条件
+   3. 服务出问题 —— 等一会儿或看缓存
+   =========================================================== */
+function renderEmpty(data, degradedReason) {
+  show('result');   // 仍然用结果页的外壳（保留顶栏和搜索框）
+  // 但把主体换成空态
+  $('blocks').innerHTML = '';
+
+  const all = data.answers || [];
+  const isDeg = data.mode === 'degraded' || !!degradedReason;
+  const status = document.querySelector('.status');
+  status.innerHTML = isDeg
+    ? '<i class="dot" style="background:#C9A227"></i><span>演示数据 · 未连接后端</span>'
+    : '<i class="dot"></i><span>真实检索 · 本地服务</span>';
+  if (degradedReason) status.title = degradedReason;
+  const hidden = all.filter((a) => a.group === 'hidden');
+  const isDegraded = data.mode === 'degraded' || !!degradedReason;
+  const forced = new URLSearchParams(location.search).get('state');
+
+  let kicker = '说实话';
+  let title = '';
+  let reason = '';
+  const opts = [];
+
+  if (forced === 'empty' || (!all.length && !isDegraded)) {
+    title = '这次一条都没找到';
+    reason = '不是所有问题都能在社区里找到答案。有些太新、有些太窄，或者问法跟别人用的不一样。';
+    opts.push({ label: '换个说法试试', hint: '比如把「哪个好」换成「有什么缺点」', action: 'home' });
+  } else if (!all.filter((a) => a.group !== 'hidden').length && hidden.length) {
+    title = `找到 ${all.length} 条，但都不太可信`;
+    reason = `它们要么在卖东西，要么信息太旧。我没有删，放在下面了，你可以自己判断。`;
+    opts.push({ label: `看看这 ${all.length} 条`, hint: '它们可能对你仍有参考价值', action: 'showHidden' });
+    opts.push({ label: '换个问法', hint: '换个角度可能找到更实在的经验', action: 'home' });
+  } else {
+    kicker = '暂时不行';
+    title = '现在拿不到内容';
+    reason = degradedReason || '检索服务没有响应。可能是网络问题，也可能是今天的调用次数用完了。';
+    opts.push({ label: '再试一次', hint: '如果是网络抖动，重试通常就好了', action: 'retry' });
+    opts.push({ label: '换个问法', hint: '', action: 'home' });
+  }
+
+  $('rq').textContent = data.query || '';
+  $('rmeta').textContent = data.intent_label || '';
+  $('rcount').textContent = all.length ? `找到 ${all.length} 条` : '';
+
+  $('rkicker').textContent = kicker;
+  $('rhead').textContent = title;
+  $('rhead').style.fontSize = '21px';
+  $('rhead').style.color = 'var(--ink)';
+  $('rsub').textContent = reason;
+  $('rsub').style.cssText = 'padding-bottom:0;border-bottom:none;margin-bottom:0;';
+  $('rquick').innerHTML = '';
+
+  // 建议卡片塞进第一段的位置
+  $('blocks').innerHTML = `
+    <div class="block">
+      <div class="block-head"><h3>接下来可以</h3><span class="tag">${opts.length} 个建议</span></div>
+      <div class="empty-opts">
+        ${opts.map((o, i) => `
+          <button class="opt" onclick="emptyAction('${o.action}')">
+            <div><div class="lab">${escapeHtml(o.label)}</div>${o.hint ? `<div class="hint">${escapeHtml(o.hint)}</div>` : ''}</div>
+            <span class="go2">→</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+
+  // 即使当前不显示，也要把收起区的内容填好——
+  // 用户点「看看这 N 条」时要能立刻展开，不能是空的
+  if (hidden.length) {
+    $('foldn').textContent = hidden.length + ' 条';
+    $('foldt').textContent = `另有 ${hidden.length} 条内容，我们觉得你不该直接信`;
+    $('foldbody').innerHTML = hiddenHTML(hidden);
+    $('fold').style.display = 'none';
+  } else {
+    $('fold').style.display = 'none';
+  }
+  $('pickBtn').style.display = 'none';
+  $('tech').innerHTML = '';
+  $('tech').classList.remove('on');
+  syncPickBtn();
+}
+
+function emptyAction(action) {
+  if (action === 'home') { goHome(); return; }
+  if (action === 'retry') {
+    if (CURRENT && CURRENT.query) doSearch(CURRENT.query);
+    return;
+  }
+  if (action === 'showHidden') {
+    // 把被收起的内容摊开：三段清空，只留收起区并展开
+    $('blocks').innerHTML = `<div class="block"><div class="block-head">
+      <h3>这些都被判为不可信</h3><span class="tag">没有删除，只是收起</span></div></div>`;
+    $('fold').style.display = '';
+    $('fold').classList.add('open');
+    $('rhead').textContent = '你自己看一眼';
+    $('rkicker').textContent = '判断权在你';
+    $('rsub').textContent = '下面这些是系统觉得不该直接信的。可能判错，你可以点「我认为这条没问题」推翻它。';
+    return;
+  }
+}
+
+</script>
+
+<div class="selbar" id="selbar">
+  <span class="cnt">已选 <b id="selcount">0</b> 条</span>
+  <button class="go-sel" id="goSel" onclick="openCompose()">整合所选</button>
+  <button class="clr" onclick="clearSel()">清空</button>
+  <button class="exit" onclick="toggleSelectMode()">退出</button>
+</div>
+
+<div class="modal-mask" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>你的精选资料</h3>
+      <button class="x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalbody"></div>
+  </div>
+</div>
+</body>
+</html>

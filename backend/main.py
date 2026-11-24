@@ -19,8 +19,11 @@ from __future__ import annotations
 import traceback
 from typing import Any
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import cache
@@ -85,6 +88,13 @@ def search(body: SearchRequest) -> dict[str, Any]:
             "errors": [str(exc)],
             "stats": {"recalled": 0, "unique": 0, "after_freshness": 0, "hidden": 0, "kept": 0},
         }
+
+
+# 同一个端口同时提供前端页面。这样只暴露一个端口就够，
+# 部署时不需要额外的 nginx，临时做公网演示也只需要一条隧道。
+_STATIC_DIR = Path(__file__).with_name("static")
+if _STATIC_DIR.exists():
+    app.mount("/app", StaticFiles(directory=_STATIC_DIR, html=True), name="app")
 
 
 @app.get("/api/cache/clear")

@@ -24,10 +24,9 @@
 const API_BASE = (() => {
   const manual = localStorage.getItem('ZHIJIAN_API');
   if (manual) return manual.replace(/\/+$/, '');
-  if (location.protocol.startsWith('http')) {
-    const port = location.port === '8000' ? '' : ':8000';
-    return `${location.protocol}//${location.hostname}${port}`;
-  }
+  // 从 http(s) 打开时：页面和后端在同一个端口（/app/ 是后端挂载的静态页），
+  // 直接复用 origin 即可，它已经含协议、主机和端口。
+  if (location.protocol.startsWith('http')) return location.origin;
   return 'http://127.0.0.1:8000';
 })();
 const TIMEOUT_MS = 8000;

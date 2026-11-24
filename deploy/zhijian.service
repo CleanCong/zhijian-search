@@ -1,0 +1,29 @@
+# 知鉴 Search 后端守护单元（任务 A3 · 崩了自动重启）
+#
+# 安装：
+#   sudo cp deploy/zhijian.service /etc/systemd/system/
+#   sudo cp deploy/zhijian.env.example /etc/zhijian.env   # 填入真实密钥，chmod 600
+#   sudo systemctl daemon-reload && sudo systemctl enable --now zhijian
+#
+# 密钥走 EnvironmentFile（权限 600，不进 git）。
+
+[Unit]
+Description=ZhijianSearch backend (FastAPI/uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zhijian
+WorkingDirectory=/opt/zhijian-search
+EnvironmentFile=/etc/zhijian.env
+ExecStart=/opt/zhijian-search/scripts/run_prod.sh
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

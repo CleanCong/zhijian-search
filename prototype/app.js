@@ -270,7 +270,7 @@ function render(data, degradedReason) {
           <p class="q-title">${escapeHtml(a.title || '')}</p>
           <p><span class="ellip">…</span>${escapeHtml(c.text)}${c.truncated ? '…' : ''}</p>
           ${c.truncated ? `<button class="more" onclick="expand(this)">展开全文</button>` : ''}
-          <div class="src">${sourceLine(a)}</div>
+          <div class="src">${sourceLine(a)}${a.isolated ? '<span class="iso">没有其他人印证</span>' : ''}</div>
         </div>
       </div>`;
   };

@@ -1267,13 +1267,18 @@ function render(data, degradedReason) {
 
   const points = (card.key_points || []).filter(Boolean);
   const basisCount = (card.basis_titles || []).length;
+  // total 是可用内容总量，basisCount 是模型实际引用的条数。
+  // 只写后者会让人以为材料很少，所以两个都写。
+  const total = st.kept || (st.after_freshness || 0) - (st.hidden || 0);
   $('rsub').textContent = noConclusion
     ? '下面这几条是别人提到最多的，你自己判断。'
     : confidence === 'low'
-    ? `材料只够说到这个程度，这条结论的把握不大。`
+    ? '材料只够说到这个程度，这条结论的把握不大。'
     : basisCount
-    ? `这句是从 ${basisCount} 条回答里归纳出来的。`
+    ? `从 ${total} 条可用内容里归纳，主要依据其中 ${basisCount} 条。`
     : '';
+  // 鼠标悬停能看到具体是哪几条
+  $('rsub').title = basisCount ? '主要依据：\n' + (card.basis_titles || []).join('\n') : '';
   $('rsub').style.display = '';
   $('rquick').innerHTML = points.map((p) => `<li>${escapeHtml(p)}</li>`).join('');
   if (!points.length) {

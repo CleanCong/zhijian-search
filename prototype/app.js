@@ -189,8 +189,8 @@ function render(data, degradedReason) {
   /* --- 顶栏模式标记：必须诚实 --- */
   const status = document.querySelector('.status');
   status.innerHTML = isDegraded
-    ? '<i class="dot" style="background:#C9A227"></i>演示数据 · 未连接后端'
-    : '<i class="dot"></i>真实检索 · 本地服务';
+    ? '<i class="dot" style="background:#C9A227"></i><span>演示数据 · 未连接后端</span>'
+    : '<i class="dot"></i><span>真实检索 · 本地服务</span>';
   if (degradedReason) status.title = degradedReason;
 
   /* --- 头部 --- */
@@ -342,9 +342,21 @@ function toggleTech() {
   TECH_ON = !TECH_ON;
   $('tech').classList.toggle('on', TECH_ON);
   $('dtoggle').classList.toggle('on', TECH_ON);
-  $('dtoggle').textContent = TECH_ON ? '已显示技术细节' : '显示技术细节';
+  syncTechLabel();
   if (TECH_ON && CURRENT) $('tech').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+
+/* 手机顶栏放不下六个字，缩成「细节 / 收起细节」 */
+function syncTechLabel() {
+  const btn = $('dtoggle');
+  if (!btn) return;
+  const narrow = window.innerWidth <= 680;
+  btn.textContent = TECH_ON
+    ? (narrow ? '收起细节' : '已显示技术细节')
+    : (narrow ? '细节' : '显示技术细节');
+}
+window.addEventListener('resize', syncTechLabel);
+document.addEventListener('DOMContentLoaded', syncTechLabel);
 
 function override(btn) {
   if (btn.classList.contains('did')) {
@@ -577,8 +589,8 @@ function renderEmpty(data, degradedReason) {
   const isDeg = data.mode === 'degraded' || !!degradedReason;
   const status = document.querySelector('.status');
   status.innerHTML = isDeg
-    ? '<i class="dot" style="background:#C9A227"></i>演示数据 · 未连接后端'
-    : '<i class="dot"></i>真实检索 · 本地服务';
+    ? '<i class="dot" style="background:#C9A227"></i><span>演示数据 · 未连接后端</span>'
+    : '<i class="dot"></i><span>真实检索 · 本地服务</span>';
   if (degradedReason) status.title = degradedReason;
   const hidden = all.filter((a) => a.group === 'hidden');
   const isDegraded = data.mode === 'degraded' || !!degradedReason;

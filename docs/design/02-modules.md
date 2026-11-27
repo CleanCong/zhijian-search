@@ -282,11 +282,12 @@ class Claim(BaseModel):
 
     # 两个独立的置信度，不可混为一谈
     model_confidence: str       # high | medium | low（模型自评）
-    evidence_status: str        # 由代码按证据关系计算
+    evidence_status: str        # supported | partially_supported | disputed | insufficient
     independent_source_count: int
-
-    coverage_status: str        # supported | partially_supported | disputed | insufficient
     controversy: bool
+
+    # 说明：原方案里的 coverage_status 与 evidence_status 语义重叠，
+    # 已合并为 evidence_status 一个字段，避免两处不同步。
 ```
 
 ### 两个置信度的区别（关键设计）
@@ -295,6 +296,9 @@ class Claim(BaseModel):
 |---|---|---|---|
 | `model_confidence` | LLM 自评 | 模型对自己这句话有多确信 | ❌ 不可以 |
 | `evidence_status` | **代码计算** | 实际有多少独立来源支撑 | ✅ 可以 |
+
+> `coverage_status` 已合并进 `evidence_status`：两者都表达「证据够不够」，
+> 分开存只会导致一处更新、一处忘记。
 
 计算规则：
 

@@ -339,3 +339,85 @@ def test_finalized_flag_tracks_state():
     assert pkg.finalized is False
     pkg.finalize()
     assert pkg.finalized is True
+
+
+# ---------------- 跨源去重（真实数据实测暴露的问题） ----------------
+
+def test_same_answer_across_sources_deduped(zhihu_items, global_items):
+    """同一篇知乎回答可能同时出现在 search zhihu 和 search global 里。
+
+    实测数据里 20 条中有 4 条完全重复。如果不按 URL 统一归并，
+    一条 Claim 会被这 4 篇算成 8 个独立来源 —— 虚假的「多来源印证」。
+    """
+    zh = [from_zhihu_search(it, i) for i, it in enumerate(zhihu_items)]
+    gl = [from_global_search(it, i) for i, it in enumerate(global_items)]
+
+    keys = {e.independence_key for e in zh + gl}
+    assert len(keys) < len(zh) + len(gl), "两个接口存在重复，合并后应少于总数"
+    # 实测：20 条 → 16 个独立来源
+    assert len(keys) == 16
+
+
+def test_global_result_on_zhihu_domain_classified_as_zhihu(global_items):
+    """全网搜索里有 6/10 来自知乎域名，必须归为 zhihu 而不是 web。"""
+    evs = [from_global_search(it, i) for i, it in enumerate(global_items)]
+    zhihu_count = sum(1 for e in evs if e.source_type == "zhihu")
+    assert zhihu_count == 6, f"预期 6 条知乎域名，实际 {zhihu_count}"
+
+
+def test_claims_across_sources_not_double_counted(zhihu_items, global_items):
+    """同一回答从两个接口各进来一次，作为证据时只算 1 条。"""
+    zh = [from_zhihu_search(it, i) for i, it in enumerate(zhihu_items)]
+    gl = [from_global_search(it, i) for i, it in enumerate(global_items)]
+
+    # 找到跨源重复的那一条
+    zh_by_key = {e.independence_key: e for e in zh}
+    dup_pair = next((e for e in gl if e.independence_key in zh_by_key), None)
+    assert dup_pair is not None, "这批数据应当存在跨源重复"
+
+    original = zh_by_key[dup_pair.independence_key]
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=[original.evidence_id, dup_pair.evidence_id])
+    status, n = compute_evidence_status(c, [original, dup_pair])
+    assert n == 1
+    assert status == "partially_supported"
+
+
+def test_url_normalization_edge_cases():
+    """域名大小写、www 前缀、http/https、尾斜杠、锚点、utm 都不应影响判同。"""
+    pairs = [
+        ("https://Example.com/a", "https://example.com/a"),
+        ("https://www.example.com/a", "https://example.com/a"),
+        ("http://example.com/a", "https://example.com/a"),
+        ("https://example.com/a/", "https://example.com/a"),
+        ("https://example.com/a#sec", "https://example.com/a"),
+        ("https://example.com/a?utm_source=x", "https://example.com/a"),
+    ]
+    for u1, u2 in pairs:
+        assert make_independence_key("web", u1, "c") == make_independence_key("web", u2, "c"), f"{u1} 与 {u2} 应同键"
+
+
+def test_independence_key_has_no_source_type_prefix():
+    """键不能带 source_type 前缀，否则同 URL 跨源会不同键。"""
+    k1 = make_independence_key("zhihu", "https://example.com/a", "x")
+    k2 = make_independence_key("web", "https://example.com/a", "x")
+    assert k1 == k2
+    assert k1.startswith("url:")
+
+
+# ---------------- 关系失效告警 ----------------
+
+def test_dangling_reference_recorded_as_warning():
+    """Claim 引用了已不存在的 evidence_id，finalize 时不能沉默。"""
+    e1 = _ev("e1", "k1")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1", "已经删掉的ID"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    assert pkg.warnings, "悬空引用必须留下告警"
+    assert "已经删掉的ID" in pkg.warnings[0]
+    assert c.independent_source_count == 1
+
+
+def test_no_warning_when_references_clean():
+    e1 = _ev("e1", "k1")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    assert pkg.warnings == []

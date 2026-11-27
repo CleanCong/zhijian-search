@@ -114,16 +114,19 @@ def make_independence_key(source_type: str, url: str | None, content: str) -> st
     if url:
         try:
             p = urlparse(url)
+            host = p.netloc.lower().removeprefix("www.")
             path = p.path.rstrip("/")
+            base = f"{host}{path}"
         except Exception:
-            path = url
-        base = f"{p.netloc}{path}" if url else url
+            base = url
         digest = hashlib.sha1(base.encode("utf-8")).hexdigest()[:12]
-        return f"{source_type}:{digest}"
+        # 不带 source_type 前缀：同一篇回答无论从知乎搜索还是全网搜索进来，
+        # 都必须是同一个键，否则会被算成两条独立证据。
+        return f"url:{digest}"
 
     body = re.sub(r"\s+", "", content or "")[:200]
     digest = hashlib.sha1(body.encode("utf-8")).hexdigest()[:12]
-    return f"{source_type}:content:{digest}"
+    return f"content:{digest}"
 
 
 def extract_question_id(url: str | None) -> str | None:
@@ -175,11 +178,24 @@ def from_zhihu_search(raw: dict, idx: int = 0) -> Evidence:
     )
 
 
+ZHIHU_HOSTS = {"zhihu.com", "zhuanlan.zhihu.com", "www.zhihu.com"}
+
+
+def _is_zhihu_url(url: str | None) -> bool:
+    if not url:
+        return False
+    try:
+        host = urlparse(url).netloc.lower().removeprefix("www.")
+    except Exception:
+        return False
+    return host in {"zhihu.com", "zhuanlan.zhihu.com"}
+
+
 def from_global_search(raw: dict, idx: int = 0) -> Evidence:
     """把 search global 的单条结果转成 Evidence。
 
-    全网结果来自外部站点，source_type 统一记 web，
-    但 source_name 保留域名，便于展示「来自某某网站」。
+    实测发现全网搜索里有相当比例的结果来自知乎域名（10 条中有 6 条），
+    这些必须归为 zhihu 来源，否则同一篇回答会被当成「两个独立来源」。
     """
     url = raw.get("Url")
     content = (raw.get("ContentText") or "").strip()
@@ -189,9 +205,10 @@ def from_global_search(raw: dict, idx: int = 0) -> Evidence:
             host = urlparse(url).netloc
         except Exception:
             host = ""
+    is_zhihu = _is_zhihu_url(url)
     return Evidence(
-        evidence_id=f"ev_web_{idx:04d}",
-        source_type="web",
+        evidence_id=f"ev_{'zh' if is_zhihu else 'web'}_{idx:04d}",
+        source_type="zhihu" if is_zhihu else "web",
         source_name=host or "网页",
         title=(raw.get("Title") or "").strip(),
         url=url,

@@ -99,6 +99,9 @@ class KnowledgePackage(BaseModel):
     # finalize() 是否执行过。落库前必须为 True，否则 Claim 状态是脏的
     finalized: bool = False
 
+    # finalize 时发现的引用问题（悬空 evidence_id 等），供上层决定是否告警
+    warnings: list[str] = Field(default_factory=list)
+
     # ---------- 派生视图 ----------
 
     def finalize(self) -> "KnowledgePackage":
@@ -107,7 +110,14 @@ class KnowledgePackage(BaseModel):
         构建完成后必须调用一次，否则 claims 会停留在默认的 insufficient。
         放在这里而不是构造时自动跑，是因为 evidences 可能分批加入。
         """
+        known = {e.evidence_id for e in self.evidence}
+        self.warnings = []
         for c in self.claims:
+            dangling = [i for i in c.evidence_ids if i not in known]
+            if dangling:
+                self.warnings.append(
+                    f"{c.claim_id} 引用了不存在的证据：{', '.join(dangling)}"
+                )
             apply_evidence_status(c, self.evidence)
         self.finalized = True
         return self

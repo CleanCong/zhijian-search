@@ -105,24 +105,25 @@ class Evidence(BaseModel):
 def make_independence_key(source_type: str, url: str | None, content: str) -> str:
     """生成独立性分组键。
 
-    规则：
-    - 有 URL 的，按「域名 + 路径」取指纹（去掉 query 参数，避免同页不同 utm 被当两条）
-    - 同域名的转载页仍算不同（路径不同），但内容完全相同的会被内容指纹捕获
-    - 直答没有 URL，用内容指纹 + 固定前缀，便于和它的引用来源人工归并
+    规则（按优先级）：
+    1. 有 URL —— **只看 URL**，归一化后取指纹。
+       同一 URL 无论抓几次、内容截断位置是否不同，都必须算同一个来源。
+       （早期版本把内容指纹也拼进去，导致同页两次抓取被算成两条独立证据。）
+    2. 无 URL —— 用内容指纹，便于把直答和它的引用做人工归并。
     """
     if url:
         try:
             p = urlparse(url)
-            path = re.sub(r"/(answer|question)/\d+.*$", r"/\1", p.path)
-            base = f"{p.netloc}{path}"
+            path = p.path.rstrip("/")
         except Exception:
-            base = url
-    else:
-        base = "no-url"
+            path = url
+        base = f"{p.netloc}{path}" if url else url
+        digest = hashlib.sha1(base.encode("utf-8")).hexdigest()[:12]
+        return f"{source_type}:{digest}"
 
     body = re.sub(r"\s+", "", content or "")[:200]
-    digest = hashlib.sha1(f"{base}|{body}".encode("utf-8")).hexdigest()[:12]
-    return f"{source_type}:{digest}"
+    digest = hashlib.sha1(body.encode("utf-8")).hexdigest()[:12]
+    return f"{source_type}:content:{digest}"
 
 
 def extract_question_id(url: str | None) -> str | None:

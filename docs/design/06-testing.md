@@ -46,6 +46,11 @@
 | `scene_generator` | 各 `visual.type` | 输出符合 schema |
 | `retrieval_budget` | 额度不足 | 停止非必要调用 |
 | `cache key 生成` | 改 prompt 版本 | **key 必须变化** |
+| `Evidence 独立性` | 同 URL 不同内容 / 带 utm 参数 | 必须算同一个来源 |
+| `recalc_timeline` | 连续调用 3 次 | 总时长不累加，结果幂等 |
+| `recalc_timeline` | 音频实际时长 ≠ 预估 | 以音频为准重算 |
+| `finalize` 重入 | 增/删证据后再次 finalize | Claim 状态同步升/降级 |
+| `assert_ready` | 未 finalize 就落库 | 抛错，不许带脏状态出门 |
 
 ### 测试数据
 
@@ -96,7 +101,15 @@ def test_direct_answer_not_counted_as_independent():
     assert status.evidence_status == "partially_supported"   # 不是 supported
 ```
 
-**③ 缓存 key 必须随 prompt 版本变化（对应 7.4）**
+**③ finalize 的调用边界**
+
+`finalize()` 保留显式调用（因为证据可能分批加入），但增加 `assert_ready()` 兜底：
+落库和返回前端之前必须调用，未 finalize 直接抛 `RuntimeError`，而不是带着
+`insufficient` 的脏状态出门。
+
+测试同时覆盖两种情况：**正常 finalize 后可用**，以及**未 finalize 时被拦住**。
+
+**④ 缓存 key 必须随 prompt 版本变化（对应 7.4）**
 
 ```python
 def test_cache_key_changes_with_prompt_version():

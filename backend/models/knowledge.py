@@ -96,6 +96,9 @@ class KnowledgePackage(BaseModel):
 
     created_at: str = ""
 
+    # finalize() 是否执行过。落库前必须为 True，否则 Claim 状态是脏的
+    finalized: bool = False
+
     # ---------- 派生视图 ----------
 
     def finalize(self) -> "KnowledgePackage":
@@ -106,7 +109,13 @@ class KnowledgePackage(BaseModel):
         """
         for c in self.claims:
             apply_evidence_status(c, self.evidence)
+        self.finalized = True
         return self
+
+    def assert_ready(self) -> None:
+        """落库 / 返回给前端之前调用。未 finalize 时直接报错，而不是带着脏状态出门。"""
+        if not self.finalized:
+            raise RuntimeError("KnowledgePackage 未执行 finalize()，Claim 的证据状态不可信")
 
     def claim_by_id(self, claim_id: str) -> Claim | None:
         return next((c for c in self.claims if c.claim_id == claim_id), None)

@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models import Claim, Evidence, KnowledgePackage, Scene, Script, Visual  # noqa: E402
-from models.claim import compute_evidence_status, normalize_claim_text  # noqa: E402
+from models.claim import apply_evidence_status, compute_evidence_status, normalize_claim_text  # noqa: E402
 from models.evidence import (  # noqa: E402
     from_global_search,
     from_question_answer,
@@ -221,3 +221,121 @@ def test_unknown_visual_type_falls_back_to_text():
 def test_visual_accepts_all_six():
     for t in ["illustration", "text", "diagram", "chart", "formula", "comparison"]:
         assert Visual(type=t).type == t
+
+
+# ---------------- 边界与幂等（用户补充的六条） ----------------
+
+def test_model_high_but_no_evidence_cannot_be_verified():
+    """模型自评 high，但只有一条来源 —— 走真实计算流程，不能变成已验证。"""
+    evs = [_ev("e1", "k1")]
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"], model_confidence="high")
+    apply_evidence_status(c, evs)
+    assert c.evidence_status == "partially_supported"
+    assert c.is_verified is False
+    assert c.display_confidence == "medium"     # 不能因为模型自信就 high
+
+
+def test_model_high_with_zero_evidence_is_low():
+    c = Claim(claim_id="c", claim_text="凭空的说法", model_confidence="high", evidence_ids=[])
+    apply_evidence_status(c, [])
+    assert c.evidence_status == "insufficient"
+    assert c.display_confidence == "low"
+    assert c.is_verified is False
+
+
+def test_direct_answer_plus_quoted_counts_one():
+    direct = Evidence(evidence_id="ai", source_type="zhihu_direct_answer",
+                      content="综合答案", content_type="direct_answer", independence_key="ai:same")
+    quoted = Evidence(evidence_id="q", source_type="zhihu", content="原回答",
+                      content_type="answer_excerpt",
+                      url="https://www.zhihu.com/question/1/answer/2")
+    c = Claim(claim_id="c", claim_text="机翼产生升力", evidence_ids=["ai", "q"])
+    status, n = compute_evidence_status(c, [direct, quoted])
+    assert n == 1
+    assert status == "partially_supported"
+
+
+def test_same_url_different_content_deduped():
+    """同一 URL 抓两次、内容截断位置不同 —— 必须算同一个来源。"""
+    a = Evidence(evidence_id="a", source_type="zhihu", content="前半段内容",
+                 content_type="answer_excerpt",
+                 url="https://www.zhihu.com/question/1/answer/2")
+    b = Evidence(evidence_id="b", source_type="zhihu", content="后半段内容完全不一样",
+                 content_type="answer_excerpt",
+                 url="https://www.zhihu.com/question/1/answer/2?utm_source=x")
+    assert a.independence_key == b.independence_key
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["a", "b"])
+    assert compute_evidence_status(c, [a, b]) == ("partially_supported", 1)
+
+
+def test_refinalize_after_evidence_added():
+    """补了一条证据后重新 finalize，Claim 状态要同步升级。"""
+    e1 = _ev("e1", "k1")
+    e2 = _ev("e2", "k2")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    assert c.evidence_status == "partially_supported"
+
+    pkg.evidence.append(e2)
+    c.evidence_ids.append("e2")
+    pkg.finalize()
+    assert c.evidence_status == "supported"
+    assert c.independent_source_count == 2
+
+
+def test_refinalize_after_evidence_removed():
+    """移除证据后重新 finalize，状态要降级，不能停在旧值。"""
+    e1, e2 = _ev("e1", "k1"), _ev("e2", "k2")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1", "e2"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1, e2]).finalize()
+    assert c.evidence_status == "supported"
+
+    pkg.evidence = [e1]
+    c.evidence_ids = ["e1"]
+    pkg.finalize()
+    assert c.evidence_status == "partially_supported"
+    assert c.independent_source_count == 1
+
+
+def test_recalc_timeline_is_idempotent():
+    """多次调用 recalc_timeline，总时长不能累加。"""
+    s = Script(script_id="s")
+    s.scenes = [
+        Scene(scene_id="a", narration="第一段", audio_duration_ms=4000),
+        Scene(scene_id="b", narration="第二段", audio_duration_ms=6000),
+    ]
+    s.recalc_timeline()
+    first = (s.total_duration_ms, s.scenes[0].start_ms, s.scenes[1].end_ms)
+    for _ in range(3):
+        s.recalc_timeline()
+    assert (s.total_duration_ms, s.scenes[0].start_ms, s.scenes[1].end_ms) == first
+    assert s.total_duration_ms == 10000
+
+
+def test_timeline_uses_real_audio_over_estimate():
+    """TTS 实际时长与预估不同时，以音频为准重算。"""
+    s = Script(script_id="s")
+    s.scenes = [
+        Scene(scene_id="a", narration="短文本", audio_duration_ms=9000),   # 预估只有 2 秒左右
+        Scene(scene_id="b", narration="另一段", audio_duration_ms=3000),
+    ]
+    s.recalc_timeline()
+    assert s.scenes[0].end_ms == 9000
+    assert s.scenes[1].start_ms == 9000
+    assert s.total_duration_ms == 12000
+
+
+def test_assert_ready_blocks_unfinalized():
+    """未 finalize 的知识包不允许直接出门。"""
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[])
+    with pytest.raises(RuntimeError):
+        pkg.assert_ready()
+    pkg.finalize()
+    pkg.assert_ready()      # 不抛错
+
+
+def test_finalized_flag_tracks_state():
+    pkg = KnowledgePackage(package_id="kp", query="q")
+    assert pkg.finalized is False
+    pkg.finalize()
+    assert pkg.finalized is True

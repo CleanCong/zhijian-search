@@ -206,11 +206,25 @@ RELATION_LABELS = {
 _COUNTED_AS_SUPPORT = {"supports"}
 
 
+ReviewStatus = Literal["accepted", "needs_review", "rejected", "pending"]
+
+REVIEW_LABELS = {
+    "accepted": "已采纳",
+    "needs_review": "待复核",
+    "rejected": "已排除",
+    "pending": "待判断",
+}
+
+
 class ClaimEvidence(BaseModel):
     """一条 Claim 与一条 Evidence 之间的关系。
 
     confidence 是「这条关系判断有多可信」，不是「这个 Claim 有多可信」。
     两者不要混用——关系判断错了，事实判断自然会错，但它们是两个层级的量。
+
+    review_status 区分「模型说了什么」和「最终采信什么」：
+    只有 accepted 才参与 Claim 状态计算。低置信度的 refutes 不能直接把
+    知识包标成争议——一次误判就会让整个结论变味。
     """
 
     claim_id: str
@@ -218,6 +232,14 @@ class ClaimEvidence(BaseModel):
     relation: Relation = "supports"
     confidence: float | None = None
     rationale: str | None = None
+
+    # 支撑该判断的原文片段。模型说某条材料反驳 Claim，却指不出原文依据，
+    # 那多半是误读了上下文——这一列就是用来查这个的。
+    evidence_quote: str | None = None
+
+    # 模型原始判断 vs 最终采信。默认 accepted 以兼容手工构造的场景，
+    # 模型产出的关系一律先待复核，过门槛后才采纳。
+    review_status: ReviewStatus = "accepted"
 
     @field_validator("confidence")
     @classmethod
@@ -229,6 +251,15 @@ class ClaimEvidence(BaseModel):
     @property
     def relation_label(self) -> str:
         return RELATION_LABELS.get(self.relation, self.relation)
+
+    @property
+    def review_label(self) -> str:
+        return REVIEW_LABELS.get(self.review_status, self.review_status)
+
+    @property
+    def counts_toward_status(self) -> bool:
+        """只有采纳的关系才参与状态计算。"""
+        return self.review_status == "accepted"
 
 
 def _legacy_relations(claim: Claim) -> list[ClaimEvidence]:
@@ -265,9 +296,14 @@ def evaluate_claim_evidence(
 
     一条有依据的反证足以推翻「已支持」——这正是反证优先的原因。
     """
-    rels = [r for r in claim_evidences if r.claim_id == claim.claim_id]
-    if not rels:
-        rels = _legacy_relations(claim)
+    all_rels = [r for r in claim_evidences if r.claim_id == claim.claim_id]
+    if not all_rels:
+        all_rels = _legacy_relations(claim)
+
+    # 只采信 accepted：待复核 / 已排除 / 待判断的关系不参与状态判定。
+    # 这条是防止「一次低置信误判就让整个 Claim 变成争议」的闸门。
+    rels = [r for r in all_rels if r.review_status == "accepted"]
+    ignored = len(all_rels) - len(rels)
 
     warnings: list[str] = []
     dangling: list[str] = []
@@ -287,6 +323,8 @@ def evaluate_claim_evidence(
 
     if dangling:
         warnings.append(f"引用了不存在的证据：{', '.join(sorted(set(dangling)))}")
+    if ignored:
+        warnings.append(f"{ignored} 条关系未采纳（待复核或已排除），未计入状态")
 
     support_keys = []
     refute_keys = []
@@ -329,6 +367,7 @@ def evaluate_claim_evidence(
         "supplement_count": supplement_count,
         "mention_count": mention_count,
         "internal_conflict_count": len(internal_conflict_keys),
+        "ignored_relation_count": ignored,
         "warnings": warnings,
     }
 

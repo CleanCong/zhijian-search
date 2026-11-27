@@ -270,7 +270,25 @@ class Evidence(BaseModel):
 
 `evidence_validator` 按这个键去重后再数，避免「直答 + 其引用」被算作交叉验证。
 
-### Claim
+### Claim 与 ClaimEvidence（两个模型）
+
+**来源独立 ≠ 内容支持。** 这是必须分开建模的两件事：
+
+```python
+class ClaimEvidence(BaseModel):
+    claim_id: str
+    evidence_id: str
+    relation: str          # supports | refutes | supplements | mentions
+    confidence: float|None # 关系判断的置信度，不是事实可信度
+    rationale: str|None
+```
+
+| relation | 含义 | 计入支持数 |
+|---|---|---|
+| `supports` | 明确支持该主张 | ✅ |
+| `refutes` | 明确反驳 | ❌ 单独计入反驳数 |
+| `supplements` | 补充背景或机制 | ❌ |
+| `mentions` | 仅提及，无明确论证 | ❌ |
 
 ```python
 class Claim(BaseModel):
@@ -278,16 +296,14 @@ class Claim(BaseModel):
     claim_text: str
     claim_type: str             # fact | mechanism | experience | opinion | recommendation
     explanation: str
-    evidence_ids: list[str]
+    evidence_ids: list[str]     # 冗余视图，真相在 claim_evidences
 
     # 两个独立的置信度，不可混为一谈
     model_confidence: str       # high | medium | low（模型自评）
     evidence_status: str        # supported | partially_supported | disputed | insufficient
-    independent_source_count: int
-    controversy: bool
-
-    # 说明：原方案里的 coverage_status 与 evidence_status 语义重叠，
-    # 已合并为 evidence_status 一个字段，避免两处不同步。
+    independent_source_count: int   # 独立【支持】来源数
+    refuting_source_count: int      # 独立【反驳】来源数
+    controversy: bool               # 由关系计算得出，不手工设置
 ```
 
 ### 两个置信度的区别（关键设计）
@@ -300,14 +316,21 @@ class Claim(BaseModel):
 > `coverage_status` 已合并进 `evidence_status`：两者都表达「证据够不够」，
 > 分开存只会导致一处更新、一处忘记。
 
-计算规则：
+计算规则（**反证优先**）：
 
 | 情况 | evidence_status |
 |---|---|
-| 独立来源 ≥ 2 且无冲突 | `supported` |
-| 只有 1 个独立来源 | `partially_supported` |
-| 存在相互矛盾的来源 | `disputed` |
-| 找不到来源支撑 | `insufficient` |
+| 存在 ≥1 个独立反驳来源 | `disputed` |
+| 独立支持 ≥2 且无反驳 | `supported` |
+| 独立支持 =1 且无反驳 | `partially_supported` |
+| 无任何支持（只有补充/仅提及/无来源） | `insufficient` |
+
+**一条有依据的反证足以推翻「已支持」。** 否则三条支持压过一条反对，
+「存在争议」就永远不会被如实呈现。
+
+**同一来源内部矛盾的处理**：同一 `independence_key` 下若同时存在
+supports 与 refutes，该来源不计入任何一方，只记 `internal_conflicts`
+并产生 warning —— 不能虚增独立来源数。
 
 **展示层可以综合两者，但不能因为模型自信，就把缺证据的 Claim 标成已验证。**
 

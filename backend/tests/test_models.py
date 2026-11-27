@@ -13,7 +13,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models import Claim, Evidence, KnowledgePackage, Scene, Script, Visual  # noqa: E402
-from models.claim import apply_evidence_status, compute_evidence_status, normalize_claim_text  # noqa: E402
+from models.claim import (
+    ClaimEvidence,
+    apply_evidence_status,
+    compute_evidence_status,
+    evaluate_claim_evidence,
+    normalize_claim_text,
+)  # noqa: E402
 from models.evidence import (  # noqa: E402
     from_global_search,
     from_question_answer,
@@ -570,17 +576,27 @@ def test_fingerprint_detects_credibility_change():
         pkg.assert_ready()
 
 
-def test_fingerprint_detects_controversy_change():
-    """controversy 直接影响 evidence_status，变了也要失效。"""
+def test_fingerprint_detects_relation_change():
+    """关系从 supports 改成 refutes，状态必须变，且指纹要失效。
+
+    注意：controversy 现在由关系计算得出，不再手工设置。
+    """
     e1, e2 = _ev("e1", "k1"), _ev("e2", "k2")
-    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1", "e2"])
-    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1, e2]).finalize()
+    c = Claim(claim_id="c", claim_text="某说法")
+    ce = [
+        ClaimEvidence(claim_id="c", evidence_id="e1", relation="supports"),
+        ClaimEvidence(claim_id="c", evidence_id="e2", relation="supports"),
+    ]
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c],
+                           evidence=[e1, e2], claim_evidences=ce).finalize()
     assert c.evidence_status == "supported"
     pkg.assert_ready()
 
-    c.controversy = True
+    ce[1].relation = "refutes"
     with pytest.raises(RuntimeError, match="发生变化"):
         pkg.assert_ready()
 
     pkg.finalize()
     assert c.evidence_status == "disputed"
+    assert c.controversy is True
+    assert c.refuting_source_count == 1

@@ -9,14 +9,21 @@
 """
 
 from models.evidence import Evidence, SourceType, ContentType
-from models.claim import Claim, ClaimType, EvidenceStatus, ModelConfidence
+from models.claim import (
+    Claim,
+    ClaimEvidence,
+    ClaimType,
+    EvidenceStatus,
+    ModelConfidence,
+    Relation,
+)
 from models.knowledge import KnowledgePackage, Analogy, GlossaryItem, RelatedQuestion
 from models.retrieval import RetrievalPlan, SubQuery, QueryPurpose, DEFAULT_BUDGET
 from models.script import Script, Scene, Visual, VisualType
 
 __all__ = [
     "Evidence", "SourceType", "ContentType",
-    "Claim", "ClaimType", "EvidenceStatus", "ModelConfidence",
+    "Claim", "ClaimEvidence", "ClaimType", "EvidenceStatus", "ModelConfidence", "Relation",
     "KnowledgePackage", "Analogy", "GlossaryItem", "RelatedQuestion",
     "Script", "Scene", "Visual", "VisualType",
     "RetrievalPlan", "SubQuery", "QueryPurpose", "DEFAULT_BUDGET",

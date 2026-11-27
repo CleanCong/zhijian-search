@@ -26,10 +26,11 @@ from __future__ import annotations
 from typing import Literal
 
 import hashlib
+import re
 
 from pydantic import BaseModel, Field, PrivateAttr
 
-from models.claim import Claim, apply_evidence_status
+from models.claim import Claim, ClaimEvidence, apply_claim_evidence, evaluate_claim_evidence
 from models.evidence import Evidence
 from models.script import Script
 
@@ -81,6 +82,10 @@ class KnowledgePackage(BaseModel):
     claims: list[Claim] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
 
+    # Claim ↔ Evidence 的关系表。支持/反驳/补充/仅提及在这里表达，
+    # Claim.evidence_ids 只是它的冗余视图（finalize 时同步）。
+    claim_evidences: list[ClaimEvidence] = Field(default_factory=list)
+
     # 存 claim_id，不存文本
     consensus: list[str] = Field(default_factory=list)
     controversies: list[Controversy] = Field(default_factory=list)
@@ -104,6 +109,9 @@ class KnowledgePackage(BaseModel):
     # finalize 时发现的引用问题（悬空 evidence_id 等），供上层决定是否告警
     warnings: list[str] = Field(default_factory=list)
 
+    # 同一来源内部自相矛盾的来源数，不能计入独立计数
+    internal_conflicts: int = 0
+
     # finalize 那一刻的证据/引用关系快照，用于识别「之后又变了」
     _finalized_fp: str | None = PrivateAttr(default=None)
 
@@ -115,15 +123,19 @@ class KnowledgePackage(BaseModel):
         构建完成后必须调用一次，否则 claims 会停留在默认的 insufficient。
         放在这里而不是构造时自动跑，是因为 evidences 可能分批加入。
         """
-        known = {e.evidence_id for e in self.evidence}
+        by_id = {e.evidence_id: e for e in self.evidence}
         self.warnings = []
+        self.internal_conflicts = 0
+
         for c in self.claims:
-            dangling = [i for i in c.evidence_ids if i not in known]
-            if dangling:
-                self.warnings.append(
-                    f"{c.claim_id} 引用了不存在的证据：{', '.join(dangling)}"
-                )
-            apply_evidence_status(c, self.evidence)
+            apply_claim_evidence(c, self.claim_evidences, by_id)
+            result = evaluate_claim_evidence(c, self.claim_evidences, by_id)
+            self.internal_conflicts += result["internal_conflict_count"]
+            for w in result["warnings"]:
+                tagged = f"{c.claim_id}: {w}"
+                if tagged not in self.warnings:
+                    self.warnings.append(tagged)
+
         self._finalized_fp = self._fingerprint()
         self.finalized = True
         return self
@@ -141,7 +153,10 @@ class KnowledgePackage(BaseModel):
         """
         ev_parts = []
         for e in sorted(self.evidence, key=lambda x: x.evidence_id):
-            body = hashlib.sha1((e.content or "").encode("utf-8")).hexdigest()[:8]
+            # 内容按「去空白后」计算指纹：纯格式化差异不该频繁触发重算，
+            # 但原始内容本身保持不变。
+            normalized = re.sub(r"\s+", "", e.content or "")
+            body = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:8]
             ev_parts.append(f"{e.evidence_id}|{e.independence_key}|{e.credibility}|{body}")
 
         ref_parts = []
@@ -149,7 +164,13 @@ class KnowledgePackage(BaseModel):
             refs = ",".join(sorted(c.evidence_ids))
             ref_parts.append(f"{c.claim_id}|{int(c.controversy)}|{refs}")
 
-        raw = "||".join(ev_parts) + "##" + "||".join(ref_parts)
+        # 关系表必须进指纹：supports 改成 refutes，状态就变了
+        rel_parts = [
+            f"{r.claim_id}|{r.evidence_id}|{r.relation}"
+            for r in sorted(self.claim_evidences, key=lambda x: (x.claim_id, x.evidence_id, x.relation))
+        ]
+
+        raw = "||".join(ev_parts) + "##" + "||".join(ref_parts) + "##" + "||".join(rel_parts)
         return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
     def assert_ready(self) -> None:

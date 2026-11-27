@@ -72,7 +72,8 @@ class Claim(BaseModel):
 
     # 代码计算，用于展示与判断
     evidence_status: EvidenceStatus = "insufficient"
-    independent_source_count: int = 0
+    independent_source_count: int = 0     # 独立支持来源数
+    refuting_source_count: int = 0        # 独立反驳来源数
     controversy: bool = False
 
     # 用于聚类的标准化文本（去标点、统一空白）
@@ -173,4 +174,174 @@ def apply_evidence_status(claim: Claim, evidence_list: list[Evidence]) -> Claim:
     status, count = compute_evidence_status(claim, evidence_list)
     claim.evidence_status = status
     claim.independent_source_count = count
+    return claim
+
+
+# ============================================================
+# Claim ↔ Evidence 关系（方案 B）
+#
+# 为什么需要这一层：
+#
+#   旧的 compute_evidence_status 只看「独立来源数 ≥ 2」，
+#   于是下面四种情况会被判成同一个结论 —— 这是错的：
+#
+#     两条来源，一条支持一条反驳   → 实际是争议，却判 supported
+#     两条来源，都只是「提到」      → 实际没有支持，却判 supported
+#     一条支持，一条与本 Claim 无关 → 独立数虚高
+#     两条支持，但同属一份原始材料  → 独立性虚高（已由 independence_key 拦住）
+#
+#   来源「独立」和来源「支持」是两件事，必须分开建模。
+# ============================================================
+
+Relation = Literal["supports", "refutes", "supplements", "mentions"]
+
+RELATION_LABELS = {
+    "supports": "支持",
+    "refutes": "反驳",
+    "supplements": "补充",
+    "mentions": "仅提及",
+}
+
+# 只有 supports 计入支持数；其余三种都不算
+_COUNTED_AS_SUPPORT = {"supports"}
+
+
+class ClaimEvidence(BaseModel):
+    """一条 Claim 与一条 Evidence 之间的关系。
+
+    confidence 是「这条关系判断有多可信」，不是「这个 Claim 有多可信」。
+    两者不要混用——关系判断错了，事实判断自然会错，但它们是两个层级的量。
+    """
+
+    claim_id: str
+    evidence_id: str
+    relation: Relation = "supports"
+    confidence: float | None = None
+    rationale: str | None = None
+
+    @field_validator("confidence")
+    @classmethod
+    def confidence_in_range(cls, v: float | None) -> float | None:
+        if v is not None and not 0.0 <= v <= 1.0:
+            raise ValueError("confidence 应在 0-1 之间")
+        return v
+
+    @property
+    def relation_label(self) -> str:
+        return RELATION_LABELS.get(self.relation, self.relation)
+
+
+def _legacy_relations(claim: Claim) -> list[ClaimEvidence]:
+    """把旧的 evidence_ids 视为全部 supports，保证老代码还能跑。"""
+    return [
+        ClaimEvidence(claim_id=claim.claim_id, evidence_id=eid, relation="supports")
+        for eid in claim.evidence_ids
+    ]
+
+
+def evaluate_claim_evidence(
+    claim: Claim,
+    claim_evidences: list[ClaimEvidence],
+    evidence_by_id: dict[str, Evidence],
+) -> dict:
+    """按「独立来源 × 关系」计算 Claim 状态。
+
+    计算步骤（顺序不能颠倒）：
+    1. 取本 Claim 的所有关系；没有显式关系时，退回 evidence_ids（全部算 supports）
+    2. **先按 independence_key 聚合**，再分组统计
+       —— 同一来源下的两条 Evidence，一条支持一条反驳，
+          不能算成「一份支持 + 一份反驳」，那会虚增独立来源数
+    3. AI 生成内容（知乎直答）不计入独立来源
+    4. 判定状态
+
+    判定规则（反证优先）：
+
+    | 情况                          | 状态                 |
+    |-------------------------------|----------------------|
+    | 存在 ≥1 个独立反驳来源         | disputed             |
+    | 独立支持 ≥2 且无反驳           | supported            |
+    | 独立支持 =1 且无反驳           | partially_supported  |
+    | 无支持                        | insufficient         |
+
+    一条有依据的反证足以推翻「已支持」——这正是反证优先的原因。
+    """
+    rels = [r for r in claim_evidences if r.claim_id == claim.claim_id]
+    if not rels:
+        rels = _legacy_relations(claim)
+
+    warnings: list[str] = []
+    dangling: list[str] = []
+
+    # independence_key -> relation -> evidence_ids
+    grouped: dict[str, dict[str, set[str]]] = {}
+
+    for r in rels:
+        ev = evidence_by_id.get(r.evidence_id)
+        if ev is None:
+            dangling.append(r.evidence_id)
+            continue
+        if ev.source_type in _NON_INDEPENDENT_SOURCES:
+            continue                       # 直答不算独立来源
+        key = ev.independence_key or ev.evidence_id
+        grouped.setdefault(key, {}).setdefault(r.relation, set()).add(r.evidence_id)
+
+    if dangling:
+        warnings.append(f"引用了不存在的证据：{', '.join(sorted(set(dangling)))}")
+
+    support_keys = []
+    refute_keys = []
+    supplement_count = 0
+    mention_count = 0
+    internal_conflict_keys = []
+
+    for key, by_relation in grouped.items():
+        has_support = bool(by_relation.get("supports"))
+        has_refute = bool(by_relation.get("refutes"))
+
+        if has_support and has_refute:
+            # 同一来源内部自相矛盾：不计入任何一方，只记冲突
+            internal_conflict_keys.append(key)
+            warnings.append(f"来源 {key} 内部同时存在支持与反驳，已排除出独立计数")
+        elif has_support:
+            support_keys.append(key)
+        elif has_refute:
+            refute_keys.append(key)
+
+        supplement_count += len(by_relation.get("supplements", ()))
+        mention_count += len(by_relation.get("mentions", ()))
+
+    support = len(support_keys)
+    refute = len(refute_keys)
+
+    if refute >= 1:
+        status: EvidenceStatus = "disputed"
+    elif support >= 2:
+        status = "supported"
+    elif support == 1:
+        status = "partially_supported"
+    else:
+        status = "insufficient"
+
+    return {
+        "status": status,
+        "independent_support_count": support,
+        "independent_refute_count": refute,
+        "supplement_count": supplement_count,
+        "mention_count": mention_count,
+        "internal_conflict_count": len(internal_conflict_keys),
+        "warnings": warnings,
+    }
+
+
+def apply_claim_evidence(
+    claim: Claim,
+    claim_evidences: list[ClaimEvidence],
+    evidence_by_id: dict[str, Evidence],
+) -> Claim:
+    """把关系计算结果回写到 Claim。返回同对象便于链式调用。"""
+    result = evaluate_claim_evidence(claim, claim_evidences, evidence_by_id)
+    claim.evidence_status = result["status"]
+    claim.independent_source_count = result["independent_support_count"]
+    claim.refuting_source_count = result["independent_refute_count"]
+    claim.controversy = result["status"] == "disputed"
     return claim

@@ -530,3 +530,57 @@ def test_assert_ready_detects_reference_change_after_finalize():
     pkg.finalize()
     pkg.assert_ready()          # 重新 finalize 后恢复正常
     assert c.evidence_status == "supported"
+
+
+# ---------------- 指纹要覆盖所有影响判定的字段 ----------------
+
+def test_fingerprint_detects_content_change():
+    """同一 evidence_id 换了正文，支持关系就变了，指纹必须失效。"""
+    e1 = _ev("e1", "k1")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    pkg.assert_ready()
+
+    e1.content = "换成了完全不同的内容"
+    with pytest.raises(RuntimeError, match="发生变化"):
+        pkg.assert_ready()
+
+
+def test_fingerprint_detects_independence_change():
+    """independence_key 变了会改变独立来源计数，必须失效。"""
+    e1 = _ev("e1", "k1")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    pkg.assert_ready()
+
+    e1.independence_key = "换了个键"
+    with pytest.raises(RuntimeError, match="发生变化"):
+        pkg.assert_ready()
+
+
+def test_fingerprint_detects_credibility_change():
+    e1 = _ev("e1", "k1")
+    e1.credibility = "low"
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    pkg.assert_ready()
+
+    e1.credibility = "high"
+    with pytest.raises(RuntimeError, match="发生变化"):
+        pkg.assert_ready()
+
+
+def test_fingerprint_detects_controversy_change():
+    """controversy 直接影响 evidence_status，变了也要失效。"""
+    e1, e2 = _ev("e1", "k1"), _ev("e2", "k2")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1", "e2"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1, e2]).finalize()
+    assert c.evidence_status == "supported"
+    pkg.assert_ready()
+
+    c.controversy = True
+    with pytest.raises(RuntimeError, match="发生变化"):
+        pkg.assert_ready()
+
+    pkg.finalize()
+    assert c.evidence_status == "disputed"

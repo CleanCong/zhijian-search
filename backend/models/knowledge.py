@@ -129,12 +129,28 @@ class KnowledgePackage(BaseModel):
         return self
 
     def _fingerprint(self) -> str:
-        """证据列表与 Claim 引用关系的指纹。任何增删改都会让它变。"""
-        ev = "|".join(sorted(e.evidence_id for e in self.evidence))
-        refs = "|".join(
-            f"{c.claim_id}:{','.join(sorted(c.evidence_ids))}" for c in sorted(self.claims, key=lambda x: x.claim_id)
-        )
-        return hashlib.sha1(f"{ev}#{refs}".encode("utf-8")).hexdigest()[:16]
+        """状态指纹。凡影响 Claim 判定的都要进来，不能只查 ID。
+
+        覆盖：
+        - 证据的身份与数量（evidence_id）
+        - 独立性归并结果（independence_key）—— 变了会改变独立来源计数
+        - 证据正文（content 指纹）—— 同一 ID 换了内容，支持关系就变了
+        - 可信度（credibility）
+        - Claim 与证据的引用关系
+        - 争议标记（controversy 直接影响 evidence_status）
+        """
+        ev_parts = []
+        for e in sorted(self.evidence, key=lambda x: x.evidence_id):
+            body = hashlib.sha1((e.content or "").encode("utf-8")).hexdigest()[:8]
+            ev_parts.append(f"{e.evidence_id}|{e.independence_key}|{e.credibility}|{body}")
+
+        ref_parts = []
+        for c in sorted(self.claims, key=lambda x: x.claim_id):
+            refs = ",".join(sorted(c.evidence_ids))
+            ref_parts.append(f"{c.claim_id}|{int(c.controversy)}|{refs}")
+
+        raw = "||".join(ev_parts) + "##" + "||".join(ref_parts)
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
     def assert_ready(self) -> None:
         """落库 / 返回给前端之前调用。

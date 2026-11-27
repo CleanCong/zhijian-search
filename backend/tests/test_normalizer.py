@@ -127,3 +127,32 @@ def test_json_payload_shape(real_items):
     assert len(payload["items"]) == len(evs)
     assert payload["report"]["total_raw"] == 20
     json.dumps(payload)
+
+
+def test_merge_keeps_all_channels(real_items):
+    """同一来源被两个接口都找到时，两个渠道都要保留。
+
+    只留一个会导致无法统计「全网搜索带来了多少真正的新来源」。
+    """
+    zh, gl = real_items
+    evs, report = normalize_batch(zh, gl)
+
+    multi = [e for e in evs if len(e.retrieval_channels) > 1]
+    assert len(multi) == 4, f"应有 4 条被双渠道命中，实际 {len(multi)}"
+    for e in multi:
+        assert set(e.retrieval_channels) == {"zhihu_search", "global_search"}
+        assert e.retrieval_channel in e.retrieval_channels
+
+
+def test_channel_contribution_is_countable(real_items):
+    """能分出「仅知乎」「仅全网」「两者都有」，用于评估渠道价值。"""
+    zh, gl = real_items
+    evs, _ = normalize_batch(zh, gl)
+
+    only_zh = sum(1 for e in evs if e.retrieval_channels == ["zhihu_search"])
+    only_global = sum(1 for e in evs if e.retrieval_channels == ["global_search"])
+    both = sum(1 for e in evs if len(e.retrieval_channels) > 1)
+
+    assert (only_zh, only_global, both) == (6, 6, 4)
+    # 全网搜索贡献了 6 条独有来源，不是纯重复劳动
+    assert only_global > 0

@@ -127,9 +127,14 @@ def normalize_batch(
             best[key] = ev
         else:
             report.merged += 1
+            existing = best[key]
+            # 合并检索渠道：同一来源可能被多个接口找到，这个事实不能丢
+            merged_channels = list(dict.fromkeys([*existing.retrieval_channels, *ev.retrieval_channels]))
             # 正文更长的信息更完整；等长时保留先到的
-            if len(ev.content) > len(best[key].content):
-                best[key] = ev
+            keeper = ev if len(ev.content) > len(existing.content) else existing
+            keeper.retrieval_channels = merged_channels
+            keeper.retrieval_channel = merged_channels[0]
+            best[key] = keeper
 
     unique = list(best.values())
     if max_items is not None and len(unique) > max_items:

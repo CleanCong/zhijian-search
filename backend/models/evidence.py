@@ -65,10 +65,15 @@ class Evidence(BaseModel):
     # 首期只用于排序与展示，不参与 evidence_status 计算。
     credibility: Literal["high", "medium", "low"] | None = None
 
-    # 通过哪个接口找到的（zhihu_search / global_search / question_answers / direct_answer）
-    # 与 source_type 是两个概念：source_type 说内容来自哪里，
-    # retrieval_channel 说用什么方式找到，independence_key 说是否独立。
+    # 通过哪个接口找到的。与 source_type 是两个概念：
+    #   source_type        内容来自哪里（zhihu / web）
+    #   retrieval_channel  用什么方式找到（zhihu_search / global_search / ...）
+    #   independence_key   是否与其他证据独立
     retrieval_channel: str = ""
+
+    # 同一来源可能被多个接口找到（既被 zhihu_search 命中，也被 global_search 命中）。
+    # 合并时必须保留全部渠道，否则无法统计「全网搜索真正带来了多少新来源」。
+    retrieval_channels: list[str] = Field(default_factory=list)
 
     # 原始 URL 与归一化 URL 都保留：前者给用户跳转，后者用于排查误合并
     normalized_url: str | None = None
@@ -89,6 +94,10 @@ class Evidence(BaseModel):
     def model_post_init(self, __context) -> None:
         if not self.source_name:
             object.__setattr__(self, "source_name", SOURCE_LABELS.get(self.source_type, ""))
+        if not self.retrieval_channels and self.retrieval_channel:
+            object.__setattr__(self, "retrieval_channels", [self.retrieval_channel])
+        elif self.retrieval_channel and self.retrieval_channel not in self.retrieval_channels:
+            object.__setattr__(self, "retrieval_channels", [self.retrieval_channel, *self.retrieval_channels])
         if self.url and not self.normalized_url:
             object.__setattr__(self, "normalized_url", normalize_url(self.url))
         # 没显式给就自动生成，避免空键导致独立性计数丢失

@@ -31,7 +31,7 @@ import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Literal
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -65,7 +65,15 @@ class Evidence(BaseModel):
     # 首期只用于排序与展示，不参与 evidence_status 计算。
     credibility: Literal["high", "medium", "low"] | None = None
 
-    # 判断独立性的分组键，默认用 URL 域名+路径指纹
+    # 通过哪个接口找到的（zhihu_search / global_search / question_answers / direct_answer）
+    # 与 source_type 是两个概念：source_type 说内容来自哪里，
+    # retrieval_channel 说用什么方式找到，independence_key 说是否独立。
+    retrieval_channel: str = ""
+
+    # 原始 URL 与归一化 URL 都保留：前者给用户跳转，后者用于排查误合并
+    normalized_url: str | None = None
+
+    # 判断独立性的分组键
     independence_key: str = ""
 
     # 原始响应留档，便于事后复核
@@ -81,6 +89,8 @@ class Evidence(BaseModel):
     def model_post_init(self, __context) -> None:
         if not self.source_name:
             object.__setattr__(self, "source_name", SOURCE_LABELS.get(self.source_type, ""))
+        if self.url and not self.normalized_url:
+            object.__setattr__(self, "normalized_url", normalize_url(self.url))
         # 没显式给就自动生成，避免空键导致独立性计数丢失
         if not self.independence_key:
             object.__setattr__(
@@ -102,26 +112,77 @@ class Evidence(BaseModel):
         return text[:limit] + ("…" if len(text) > limit else "")
 
 
+# 已知的跟踪参数：删掉不影响内容身份。
+# 刻意不做「删除所有 query」——很多站点用 ?id=100 区分不同文章，
+# 全删会导致不同文章被误判成同一篇。
+TRACKING_PARAMS = {
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id",
+    "gclid", "fbclid", "yclid", "msclkid", "dclid",
+    "spm", "scm", "from", "share_token", "share_from", "isappinstalled",
+    "openapi_platform", "ref", "referrer",
+}
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def normalize_url(url: str) -> str:
+    """把 URL 规范化成「页面身份」形式，用于判同。
+
+    保留：协议、域名（小写，去 www）、非默认端口、路径（**保持大小写**）、
+          非跟踪类 query 参数（按名排序）
+    丢弃：fragment、跟踪参数
+
+    路径不做小写——部分服务器路径区分大小写（/Wiki vs /wiki 是两个页面）。
+    """
+    try:
+        p = urlparse(url)
+    except Exception:
+        return url
+
+    scheme = (p.scheme or "https").lower()
+    host = (p.hostname or "").lower()   # hostname 不含端口，避免重复拼接
+    if host.startswith("www."):
+        host = host[4:]
+
+    # 非默认端口必须保留：example.com:8443 与 example.com 可能是两套服务
+    try:
+        port = p.port
+    except ValueError:
+        port = None
+    if port and port != _DEFAULT_PORTS.get(scheme):
+        host = f"{host}:{port}"
+
+    path = p.path.rstrip("/") or "/"
+
+    kept = []
+    if p.query:
+        for k, v in parse_qsl(p.query, keep_blank_values=True):
+            if k.lower() not in TRACKING_PARAMS:
+                kept.append((k, v))
+    kept.sort()
+    query = urlencode(kept, doseq=True)
+
+    return urlunparse((scheme, host, path, "", query, ""))
+
+
 def make_independence_key(source_type: str, url: str | None, content: str) -> str:
     """生成独立性分组键。
 
     规则（按优先级）：
-    1. 有 URL —— **只看 URL**，归一化后取指纹。
-       同一 URL 无论抓几次、内容截断位置是否不同，都必须算同一个来源。
-       （早期版本把内容指纹也拼进去，导致同页两次抓取被算成两条独立证据。）
-    2. 无 URL —— 用内容指纹，便于把直答和它的引用做人工归并。
+    1. 有 URL —— 以归一化后的页面身份为准，**不带 source_type 前缀**。
+       同一页面无论从知乎搜索还是全网搜索进来、无论抓几次，都必须是同一个键。
+    2. 无 URL —— 用内容指纹（直答这类没有链接的）。
+
+    已知限制（刻意保留，不强行合并）：
+    跨域转载同一篇文章（不同域名）会得到两个键。仅凭标题与正文相似就合并
+    风险更大——可能把不同作者的不同观点误判成转载。后续可引入
+    duplicate_of / canonical_url 机制，而不是靠相似度猜。
     """
     if url:
-        try:
-            p = urlparse(url)
-            host = p.netloc.lower().removeprefix("www.")
-            path = p.path.rstrip("/")
-            base = f"{host}{path}"
-        except Exception:
-            base = url
-        digest = hashlib.sha1(base.encode("utf-8")).hexdigest()[:12]
-        # 不带 source_type 前缀：同一篇回答无论从知乎搜索还是全网搜索进来，
-        # 都必须是同一个键，否则会被算成两条独立证据。
+        norm = normalize_url(url)
+        # 忽略协议：同一页面的 http 与 https 视为同一个来源
+        identity = norm.split("://", 1)[-1] if "://" in norm else norm
+        digest = hashlib.sha1(identity.encode("utf-8")).hexdigest()[:12]
         return f"url:{digest}"
 
     body = re.sub(r"\s+", "", content or "")[:200]
@@ -158,6 +219,7 @@ def from_zhihu_search(raw: dict, idx: int = 0) -> Evidence:
     return Evidence(
         evidence_id=f"ev_zh_{idx:04d}",
         source_type="zhihu",
+        retrieval_channel="zhihu_search",
         title=(raw.get("Title") or "").strip(),
         url=url,
         author=(raw.get("AuthorName") or raw.get("AuthorSignature") or None),
@@ -207,8 +269,9 @@ def from_global_search(raw: dict, idx: int = 0) -> Evidence:
             host = ""
     is_zhihu = _is_zhihu_url(url)
     return Evidence(
-        evidence_id=f"ev_{'zh' if is_zhihu else 'web'}_{idx:04d}",
+        evidence_id=f"ev_gl_{idx:04d}",
         source_type="zhihu" if is_zhihu else "web",
+        retrieval_channel="global_search",
         source_name=host or "网页",
         title=(raw.get("Title") or "").strip(),
         url=url,
@@ -237,6 +300,7 @@ def from_question_answer(raw: dict, idx: int = 0) -> Evidence:
     return Evidence(
         evidence_id=f"ev_qa_{idx:04d}",
         source_type="zhihu",
+        retrieval_channel="question_answers",
         title="",
         url=url,
         author=None,

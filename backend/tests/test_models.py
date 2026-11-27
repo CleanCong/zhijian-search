@@ -421,3 +421,112 @@ def test_no_warning_when_references_clean():
     c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
     pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
     assert pkg.warnings == []
+
+
+# ---------------- URL 归一化的四个边界（评审补充） ----------------
+
+def test_port_distinguishes_hosts():
+    """非默认端口必须保留：example.com:8443 与 example.com 可能是两套服务。"""
+    k1 = make_independence_key("web", "https://a.com:8443/x", "c")
+    k2 = make_independence_key("web", "https://a.com/x", "c")
+    assert k1 != k2
+
+
+def test_default_port_stripped():
+    """默认端口应被去掉，与不带端口等价。"""
+    assert make_independence_key("web", "https://a.com:443/x", "c") == make_independence_key("web", "https://a.com/x", "c")
+    assert make_independence_key("web", "http://a.com:80/x", "c") == make_independence_key("web", "http://a.com/x", "c")
+
+
+def test_path_case_preserved():
+    """路径大小写必须保留：部分服务器 /Wiki 与 /wiki 是两个页面。"""
+    k1 = make_independence_key("web", "https://a.com/Wiki", "c")
+    k2 = make_independence_key("web", "https://a.com/wiki", "c")
+    assert k1 != k2
+
+
+def test_content_identity_query_kept():
+    """?id=100 与 ?id=200 是不同文章，不能被合并。"""
+    k1 = make_independence_key("web", "https://a.com/x?id=100", "c")
+    k2 = make_independence_key("web", "https://a.com/x?id=200", "c")
+    assert k1 != k2
+
+
+def test_tracking_params_stripped():
+    k1 = make_independence_key("web", "https://a.com/x?utm_source=a", "c")
+    k2 = make_independence_key("web", "https://a.com/x?utm_source=b", "c")
+    assert k1 == k2
+
+
+def test_query_param_order_irrelevant():
+    k1 = make_independence_key("web", "https://a.com/x?a=1&b=2", "c")
+    k2 = make_independence_key("web", "https://a.com/x?b=2&a=1", "c")
+    assert k1 == k2
+
+
+def test_normalized_url_kept_separately():
+    """原始 URL 与归一化 URL 都要留，便于排查误合并。"""
+    ev = Evidence(evidence_id="x", source_type="web", content="内容",
+                  content_type="web_snippet",
+                  url="https://www.Example.com:8443/Path/?utm_source=x&id=3#frag")
+    assert ev.url == "https://www.Example.com:8443/Path/?utm_source=x&id=3#frag"
+    assert ev.normalized_url == "https://example.com:8443/Path?id=3"
+
+
+# ---------------- 端到端：20 条 Evidence 只算 16 个独立来源 ----------------
+
+def test_twenty_evidence_counted_as_sixteen_sources(zhihu_items, global_items):
+    """这条堵的是「按对象数量计数」而不是「按独立来源计数」的漏洞。
+
+    20 条原始材料（知乎 10 + 全网 10），其中 4 条完全相同。
+    全部关联到同一个 Claim，独立来源数必须是 16，不是 20。
+    """
+    zh = [from_zhihu_search(it, i) for i, it in enumerate(zhihu_items)]
+    gl = [from_global_search(it, i) for i, it in enumerate(global_items)]
+    all_ev = zh + gl
+    assert len(all_ev) == 20
+
+    c = Claim(claim_id="c", claim_text="飞机机翼产生升力",
+              evidence_ids=[e.evidence_id for e in all_ev])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=all_ev).finalize()
+
+    assert c.independent_source_count == 16, f"应按独立来源算 16，实际 {c.independent_source_count}"
+    assert c.evidence_status == "supported"
+    assert len(pkg.warnings) == 0
+
+
+def test_retrieval_channel_independent_of_source_type(global_items):
+    """retrieval_channel 说「怎么找到的」，source_type 说「内容来自哪」。"""
+    evs = [from_global_search(it, i) for i, it in enumerate(global_items)]
+    # 从全网搜索渠道进来，但内容是知乎的
+    from_zhihu_host = next(e for e in evs if e.source_type == "zhihu")
+    assert from_zhihu_host.retrieval_channel == "global_search"
+    assert from_zhihu_host.source_type == "zhihu"
+
+
+# ---------------- assert_ready 识别 finalize 后的变化 ----------------
+
+def test_assert_ready_detects_evidence_added_after_finalize():
+    e1 = _ev("e1", "k1")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1]).finalize()
+    pkg.assert_ready()
+
+    pkg.evidence.append(_ev("e2", "k2"))
+    with pytest.raises(RuntimeError, match="发生变化"):
+        pkg.assert_ready()
+
+
+def test_assert_ready_detects_reference_change_after_finalize():
+    e1, e2 = _ev("e1", "k1"), _ev("e2", "k2")
+    c = Claim(claim_id="c", claim_text="某说法", evidence_ids=["e1"])
+    pkg = KnowledgePackage(package_id="kp", query="q", claims=[c], evidence=[e1, e2]).finalize()
+    pkg.assert_ready()
+
+    c.evidence_ids.append("e2")
+    with pytest.raises(RuntimeError, match="发生变化"):
+        pkg.assert_ready()
+
+    pkg.finalize()
+    pkg.assert_ready()          # 重新 finalize 后恢复正常
+    assert c.evidence_status == "supported"

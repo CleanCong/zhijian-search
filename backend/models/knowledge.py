@@ -25,7 +25,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+import hashlib
+
+from pydantic import BaseModel, Field, PrivateAttr
 
 from models.claim import Claim, apply_evidence_status
 from models.evidence import Evidence
@@ -102,6 +104,9 @@ class KnowledgePackage(BaseModel):
     # finalize 时发现的引用问题（悬空 evidence_id 等），供上层决定是否告警
     warnings: list[str] = Field(default_factory=list)
 
+    # finalize 那一刻的证据/引用关系快照，用于识别「之后又变了」
+    _finalized_fp: str | None = PrivateAttr(default=None)
+
     # ---------- 派生视图 ----------
 
     def finalize(self) -> "KnowledgePackage":
@@ -119,13 +124,31 @@ class KnowledgePackage(BaseModel):
                     f"{c.claim_id} 引用了不存在的证据：{', '.join(dangling)}"
                 )
             apply_evidence_status(c, self.evidence)
+        self._finalized_fp = self._fingerprint()
         self.finalized = True
         return self
 
+    def _fingerprint(self) -> str:
+        """证据列表与 Claim 引用关系的指纹。任何增删改都会让它变。"""
+        ev = "|".join(sorted(e.evidence_id for e in self.evidence))
+        refs = "|".join(
+            f"{c.claim_id}:{','.join(sorted(c.evidence_ids))}" for c in sorted(self.claims, key=lambda x: x.claim_id)
+        )
+        return hashlib.sha1(f"{ev}#{refs}".encode("utf-8")).hexdigest()[:16]
+
     def assert_ready(self) -> None:
-        """落库 / 返回给前端之前调用。未 finalize 时直接报错，而不是带着脏状态出门。"""
+        """落库 / 返回给前端之前调用。
+
+        拦住两种情况：
+        1. 从未 finalize —— Claim 状态还是默认的 insufficient
+        2. finalize 之后 Evidence 或引用关系又变了 —— 状态已过期
+        """
         if not self.finalized:
             raise RuntimeError("KnowledgePackage 未执行 finalize()，Claim 的证据状态不可信")
+        if self._finalized_fp != self._fingerprint():
+            raise RuntimeError(
+                "finalize 之后 Evidence 或 Claim 引用关系发生变化，状态已过期，请重新 finalize()"
+            )
 
     def claim_by_id(self, claim_id: str) -> Claim | None:
         return next((c for c in self.claims if c.claim_id == claim_id), None)
